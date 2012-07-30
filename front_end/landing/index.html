@@ -1,0 +1,43 @@
+<html>
+<head>
+<script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
+<script type="text/javascript" src='js/jquery-ui-1.8.21.custom.min.js'></script>
+<script src="js/jquery.ui.core.js"></script>
+<script src="js/jquery.ui.widget.js"></script>
+<script src="js/jquery.ui.position.js"></script>
+<script src="js/jquery.ui.selectmenu.js"></script>
+<script type="text/javascript" src="js/jquery.qtip.min.js"></script>
+
+<link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />
+<link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />
+<link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />
+<link rel="stylesheet" href="css/cloudseq.css" />
+<script>
+    $(document).ready(function(){ 
+        $('#own-url-home').attr("href", 'sftp://root@' + document.domain + ':/root/');
+        function look_for_secure_page() {
+            $.post("check_page_ready.cgi", { site: document.domain },
+              function(response){
+                  if (response == 'ready'){
+                      window.location.href = 'https://' + document.domain;
+                  }
+              }
+            );
+        }
+        setInterval(look_for_secure_page, 2000);
+    });
+</script>
+</head>
+
+<body>
+  <div id="page">
+      <div id="header">
+          <h1>STORMSeq</h1>
+          <h3>Software Tools for Open-source Read Mapping</h3>
+      </div>
+      Hello! Welcome to STORMSeq. Please upload your Certificate (cert*pem) and Private Key (pk*pem) files to the server as described on the <a href="http://stormseq.org">STORMSeq page</a> or click <a id='own-url-home'>here</a>.
+      <br/><br/>
+      After you do so, this page will automatically refresh to a secure site.
+  </div>
+</body>
+</html>

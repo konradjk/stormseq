@@ -1,0 +1,47 @@
+####################################
+## StarCluster Configuration File ##
+####################################
+[global]
+DEFAULT_TEMPLATE=stormseq
+
+#############################################
+## AWS Credentials and Connection Settings ##
+#############################################
+[aws info]
+AWS_ACCESS_KEY_ID = %(access_key_id)s
+AWS_SECRET_ACCESS_KEY = %(secret_access_key)s
+AWS_USER_ID= %(aws_account_number)s
+AWS_REGION_NAME = us-east-1b
+
+###########################
+## Defining EC2 Keypairs ##
+###########################
+# Sections starting with "key" define your keypairs. See "starcluster createkey
+# --help" for instructions on how to create a new keypair. Section name should
+# match your key name e.g.:
+[key stormseq_starcluster_%(instance)s]
+KEY_LOCATION=~/.ssh/stormseq_starcluster.rsa
+
+################################
+## Defining Cluster Templates ##
+################################
+[cluster stormseq]
+KEYNAME = stormseq_starcluster_%(instance)s
+CLUSTER_SIZE = %(number_of_processes)s
+CLUSTER_USER = sgeadmin
+CLUSTER_SHELL = bash
+NODE_IMAGE_ID = %(ami)s
+NODE_INSTANCE_TYPE = %(instance_type)s
+AVAILABILITY_ZONE = us-east-1b
+VOLUMES = genome_data
+%(spot_request)s
+
+
+#############################
+## Configuring EBS Volumes ##
+#############################
+
+# Sections starting with "volume" define your EBS volumes
+[volume genome_data]
+VOLUME_ID = %(volume_id)s
+MOUNT_PATH = /mydata

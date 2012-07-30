@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+ <head>
+   <meta charset="utf-8">
+   <title>STORMSeq</title>
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="description" content="STORMSeq Main Page">
+   <meta name="author" content="Konrad Karczewski">
+   <link href="css/bootstrap.css" rel="stylesheet">
+   <link href="css/bootstrap-responsive.css" rel="stylesheet">
+   <link href="css/stormseq.css" rel="stylesheet">
+   <script src="js/jquery-1.7.2.min.js"></script>
+   <script src="js/bootstrap.js"></script>
+   <style>
+     body {
+       padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
+     }
+   </style>
+   <link href="css/bootstrap-responsive.css" rel="stylesheet">
+ </head>
+ <body>
+  <div class="navbar navbar-fixed-top">
+    <div class="navbar-inner">
+      <div class="container">
+        <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </a>
+        <a class="brand" href="index.html">STORMSeq</a>
+        <div class="nav-collapse">
+          <ul class="nav">
+            <li><a href="index.html">Home</a></li>
+            <li class="active"><a href="about.html">About</a></li>
+            <li><a href="use.html">How to Use</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </div><!--/.nav-collapse -->
+      </div>
+    </div>
+  </div>
+  <div class="container">
+   <div class="hero-unit">
+    <h1>STORMSeq</h1>
+    <p>
+     Welcome to the Scalable Tools for Open-source Read Mapping (STORM) Seq package.
+     Create a private, personal read-mapping environment in the cloud.
+     Minimal technical expertise necessary.
+    </p>
+    <p>
+     <a class="btn btn-primary btn-large" href="use.html">Learn how to use &raquo;</a>
+    </p>
+   </div>
+   <div class="row">
+    <div class='span12'>
+     <h2>What is STORMSeq?</h2>
+      <li>STORMSeq is a cloud-based pipeline for processing short read data (as one might get from the Illumina or 454 platforms) to variant data.</li>
+      <li>It is easy-to-use and implemented using only graphical interfaces on the Amazon cloud.</li>
+      <li>It implements a number of alignment packages including <a href="http://bio-bwa.sourceforge.net/">BWA</a>
+      and <a href="http://snap.cs.berkeley.edu/">SNAP</a>,
+      the <a href="http://www.broadinstitute.org/gsa/wiki/index.php/Best_Practice_Variant_Detection_with_the_GATK_v3">GATK cleaning pipeline</a>,
+      and variant calling using <a href="http://www.broadinstitute.org/gsa/wiki/index.php/Introduction_to_the_GATK">GATK</a>
+      or <a href="http://samtools.sourceforge.net/">samtools</a>.</li>
+      <li>The software itself is free and open-source. The only cost to the user is the compute time and storage on <a href="http://aws.amazon.com/ec2">Amazon EC2</a>.</li>
+     <h2>How much does it cost to run STORMSeq?</h2>
+      <li>The software itself is free. The user pays for time on the Amazon cloud.</li>
+      <li>This cost depends on the amount of data to process and the parameters set by the user.</li>
+      <li>As a rough estimate:</li>
+      <ul>
+       <li>A full genome (30X coverage) will cost about $X to process using BWA and $X using SNAP.</li>
+       <li>A full exome (80X coverage) will cost about $X to process using BWA and $X using SNAP.</li>
+       <li>However, these prices may vary depending on a number of factors, including parameters of the data and the current cost of Amazon machines.</li>
+      </ul>
+    </div>
+   </div>
+   <footer>
+    <p>&copy; Karczewski et al., 2012</p>
+   </footer>
+  </div> <!-- /container -->
+ </body>
+</html>
