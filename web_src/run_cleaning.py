@@ -18,7 +18,7 @@ check_command = copy.deepcopy(starcluster)
 check_command.append("'qstat'")
 stdout = subprocess.check_output(check_command)
 f.write(stdout)
-f.write('length: %s' % len(stdout.split('\n')))
+f.write('length: %s\n' % len(stdout.split('\n')))
 while len(stdout.split('\n')) > 5:
     stdout = subprocess.check_output(check_command)
     time.sleep(10)
@@ -28,7 +28,11 @@ def get_stats_file(parameters, ext, log):
     stats_filename = "%s.%s" % (parameters['sample_name'], ext)
     get_command.append("/mydata/%s" % stats_filename)
     get_command.append("/var/www/%s" % stats_filename)
-    stdout = subprocess.check_output(get_command)
+    log.write(' '.join(get_command) + '\n')
+    try:
+      stdout = subprocess.check_output(get_command, stderr=f)
+    except subprocess.CalledProcessError, e:
+      print >> f, e
     log.write(stdout + '\n')
     command = "tar zxv -C /var/www/ -f /var/www/%s" % stats_filename
     log.write(command + '\n')
@@ -53,17 +57,25 @@ total_nodes = int(parameters['number_of_processes'])
 f.write('have:\t%s nodes\nneed:\t%s nodes\n' % (total_nodes, nodes_needed))
 f.flush()
 
-
 if total_nodes < nodes_needed:
     nodes_to_add = nodes_needed - total_nodes
     nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
     nodes_command = "sudo starcluster an -n %s -a %s stormseq" % (nodes_to_add, nodes_names_to_add)
-    output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
-    f.write(output + '\n')
-    while output.find('does not exist') > -1:
+    started = False
+    failed = 0
+    while not started:
+      try:
+        output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+        started = True
+        f.write(output + '\n')
+        f.flush()
+      except subprocess.CalledProcessError, e:
         time.sleep(300)
         nodes_command = "sudo starcluster an -x -n %s -a %s stormseq" % (nodes_to_add, nodes_names_to_add)
-        output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+        failed += 1
+        if failed == 5:
+          f.write('Failed 5 times. Exiting...\n')
+          sys.exit()
 elif total_nodes > nodes_needed:
     nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])
     nodes_command = "sudo starcluster rn %s stormseq" % nodes_to_remove

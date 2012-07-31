@@ -1,5 +1,6 @@
 import sys
 import os
+import time
 import subprocess
 from optparse import OptionParser
 import commands
@@ -11,7 +12,7 @@ parser = OptionParser()
 parser.add_option('--bams', help='Sorted BAM files')
 parser.add_option('--output', help='Sample', default='Me')
 
-(options,args) = parser.parse_args()
+(options, args) = parser.parse_args()
 
 input = ' '.join(["I=%s" % lane for lane in options.bams.split(',')])
 
@@ -26,6 +27,7 @@ print exit_status, stdout
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s I=%s O=%s VALIDATION_STRINGENCY=SILENT' % (picard_stats_binary, options.output, stats_file))
 print exit_status, stdout
 
+time.sleep(120)
 exit_status, stdout = commands.getstatusoutput('tar zcv %s* > %s.tar.gz' % (stats_file, stats_file))
 print exit_status, stdout
 

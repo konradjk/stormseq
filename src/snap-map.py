@@ -2,7 +2,7 @@ import sys
 import os
 import subprocess
 from optparse import OptionParser
-import commands
+import commands, subprocess
 from multiprocessing import Process
 
 root = '/usr/local/bin/'
@@ -24,6 +24,7 @@ sample = options.sample
 
 snap_binary = '%s/snap' % root
 samtools_binary = '%s/samtools' % root
+picard_binary = '%s/picard/AddOrReplaceReadGroups.jar' % root
 
 gzip = fq1.endswith('.gz')
 # 1. Unzip files if zipped
@@ -42,6 +43,7 @@ if gzip:
 
 sam = fq1.replace('_1.fq', '.sam')
 bam = sam.replace('.sam', '.raw.bam')
+rg_bam = sam.replace('.sam', '.rg.bam')
 sorted_bam = bam.replace('.raw.bam', '.sorted.bam')
 sorted_bam_prefix = sorted_bam.replace('.bam', '')
 
@@ -57,14 +59,19 @@ if gzip:
   print '%s\n' % p.pid
   
   p = subprocess.Popen(['gzip', fq2], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-  print '%s\n' % p.pid
-  
+  print '%s\n' % p.pid  
 
 # 3. SAM to BAM
 exit_status, stdout = commands.getstatusoutput('%s view -b -h -S -t %s -o %s %s' % (samtools_binary, ref, bam, sam))
 print exit_status, stdout
+
+command = 'java -Xmx5g -jar %s INPUT=%s OUTPUT=%s SORT_ORDER=unsorted' % (picard_binary, bam, rg_bam)
+command += ' RGID=%s RGLB=%s RGPL=%s RGPU=%s RGSM=%s' % (read_group_id, sample, platform, 1, sample)
+exit_status, stdout = commands.getstatusoutput(command)
+print exit_status, stdout
+
 # 4. Sort BAM
-exit_status, stdout = commands.getstatusoutput('%s sort %s %s' % (samtools_binary, bam, sorted_bam_prefix))
+exit_status, stdout = commands.getstatusoutput('%s sort %s %s' % (samtools_binary, rg_bam, sorted_bam_prefix))
 print exit_status, stdout
 
 exit_status, stdout = commands.getstatusoutput('touch %s.done' % (sorted_bam))

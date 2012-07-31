@@ -496,7 +496,7 @@ function mapping_handle_response(response) {
     $('#run-status').empty();
     if (response == 'success') {
         $('#run-status').append('Your jobs are running. You can view the progress and visualize results below.');
-        check_progress();
+        click_refresh_progress();
     } else {
         $('#run-status').append('There was an error: ' + response);
     }

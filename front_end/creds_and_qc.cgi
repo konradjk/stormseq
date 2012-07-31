@@ -33,7 +33,10 @@ for filename in files:
       qc_fail('Duplicate file found')
     file_headers[read][pair] = filename
     read_size = fqfile.readline().strip()
-  last_line = commands.getoutput('tail -1 %s' % filename)
+  if ext == '.gz':
+    last_line = commands.getoutput('zcat %s | tail -1' % filename)
+  else:
+    last_line = commands.getoutput('tail -1 %s' % filename)
   if len(read_size) != len(last_line):
     qc_fail('Last line not the same length as 2nd line. Truncated file?')
 # Rename to basename_read_1234_1_{1,2}.fq.gz if gzipped, otherwise .fq

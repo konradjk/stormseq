@@ -1,7 +1,7 @@
 import os, glob, commands, sys
 
 def get_files(this_dir, log):
-    all_files = os.listdir(this_dir)
+    all_files = [os.path.join(this_dir, file) for file in os.listdir(this_dir)]
     files = [file for file in all_files if file.endswith('.fq.gz') or file.endswith('.fastq.gz')]
     if len(files) == 0:
         files = [file for file in all_files if file.endswith('.fq')]
@@ -15,7 +15,7 @@ def get_files(this_dir, log):
     return (files, ext)
 
 def write_config_file(parameters, number_of_processes, log, volume_id=None):
-    amis = {'hg19': 'ami-b759f1de'}
+    amis = {'hg19': 'ami-515bf338'}
     instances = {'bwa' : 'm1.large',
                  'snap' : 'm2.4xlarge'}
     

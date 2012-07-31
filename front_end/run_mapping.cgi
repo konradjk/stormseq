@@ -83,7 +83,8 @@ for fq1 in fq_files:
     elif parameters['alignment_pipeline'] == 'snap':
         map_command = 'qsub -b y -cwd echo'
     f.write(map_command + '\n')
-    exit_status, stdout = commands.getstatusoutput(map_command)
+    #exit_status, stdout = commands.getstatusoutput(map_command)
+    exit_status, stdout = commands.getstatusoutput("sudo starcluster sshmaster stormseq 'qsub -b y -cwd echo'")
     f.write(stdout + '\n')  
     job = get_job_id(stdout)      
     if job is None:
