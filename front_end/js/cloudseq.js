@@ -89,6 +89,9 @@ function click_refresh_progress() {
     $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, setup_charts);
 }
 function setup_charts(response) {
+    if (response == 'no-progress') {
+      return false;
+    }
     $('#progress-chart').empty();
     $('#progress-chart-2').empty();
     response_data = JSON.parse(response);
@@ -256,6 +259,9 @@ function update_charts(response_data) {
     $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, update_map_chart);
 }
 function update_map_chart(response){
+    if (response == 'no-progress') {
+      return false;
+    }
     $('.intbamtext').empty()
     $('.finalbamtext').empty()
     $('.vcftext').empty()

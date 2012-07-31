@@ -33,7 +33,7 @@ dbsnp_chr = dbsnp.replace('.vcf', '_%s.vcf' % chromosome)
 gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
 
 def run_gatk_commands(command):
-  command += '' if options.intervals is None else ' --interval_set_rule INTERSECTION -L %s' % options.intervals
+  command += '' if options.intervals is None else ' -L %s' % options.intervals
   command += '' if options.intervals is None or command.find('--interval_set_rule INTERSECTION') > -1 else ' --interval_set_rule INTERSECTION'
   print command
   exit_status, stdout = commands.getstatusoutput(command)

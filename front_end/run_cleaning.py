@@ -1,4 +1,4 @@
-import time, json, sys, copy
+import time, json, sys, copy, glob
 import commands, subprocess
 from helpers import *
 
@@ -9,7 +9,7 @@ f.flush()
 check_command = copy.deepcopy(starcluster)
 check_command.append("'qstat'")
 stdout = subprocess.check_output(check_command)
-f.write('%s\mlength: %s\n' % (stdout, len(stdout.split('\n'))))
+f.write('%s\nlength: %s\n' % (stdout, len(stdout.split('\n'))))
 while len(stdout.split('\n')) > 5:
     stdout = subprocess.check_output(check_command)
     time.sleep(10)
@@ -27,7 +27,8 @@ total_nodes = int(parameters['number_of_processes'])
 f.write('have:\t%s nodes\nneed:\t%s nodes\n' % (total_nodes, nodes_needed))
 f.flush()
 
-if total_nodes < nodes_needed:
+if False:
+ if total_nodes < nodes_needed:
     nodes_to_add = nodes_needed - total_nodes
     nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
     nodes_command = "sudo starcluster an -n %s -a %s stormseq" % (nodes_to_add, nodes_names_to_add)
@@ -40,7 +41,7 @@ if total_nodes < nodes_needed:
         f.write(output + '\n')
         f.flush()
       except subprocess.CalledProcessError, e:
-        f.write(output + '\n')
+        f.write(str(e) + '\n')
         f.flush()
         time.sleep(300)
         nodes_command = "sudo starcluster an -x -n %s -a %s stormseq" % (nodes_to_add, nodes_names_to_add)
@@ -48,7 +49,7 @@ if total_nodes < nodes_needed:
         if failed == 5:
           f.write('Failed 5 times. Exiting...\n')
           sys.exit()
-elif total_nodes > nodes_needed:
+ elif total_nodes > nodes_needed:
     nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])
     nodes_command = "sudo starcluster rn %s stormseq" % nodes_to_remove
     exit_status = subprocess.call(nodes_command.split(' '), stdout=f)
@@ -61,20 +62,25 @@ chroms.extend(['chrX', 'chrY', 'chrM'])
 
 possible_covariates = 'ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,DinucCovariate,HomopolymerCovariate'.split(',')
 
-inputs = { 'bam' : parameters['sample_name'] + '.merged.bam',
-          'dbsnp' : dbsnp_paths[parameters['dbsnp_version']],
-          'reference' : ref_paths[parameters['genome_version']],
-          'platform' : 'Illumina',
-          'covariates' : ','.join([x for x in possible_covariates if parameters[x]]),
-          'program': parameters['calling_pipeline'],
-          'intervals': '' }
+inputs = {
+  'bam' : parameters['sample_name'] + '.merged.bam',
+  'dbsnp' : dbsnp_paths[parameters['dbsnp_version']],
+  'reference' : ref_paths[parameters['genome_version']],
+  'platform' : 'Illumina',
+  'covariates' : ','.join([x for x in possible_covariates if parameters[x]]),
+  'program': parameters['calling_pipeline'],
+  'intervals': '' }
 
 if parameters['data_type'] == 'type_exome_illumina':
-  inputs['intervals'] = '--intervals=/data/intervals/illumina.int'
+  inputs['intervals'] = '--intervals=/data/intervals/Illumina_TruSeq.50bp.interval_list'
 elif parameters['data_type'] == 'type_exome_custom':
-  interval_files = glob.glob('/mydata/*.interval_list')
-  if len(interval_files) > 0:
-    inputs['intervals'] = '--intervals=%s' % interval_files[0]
+  check_command = copy.deepcopy(starcluster)
+  check_command.append("'ls -1 /mydata/*.interval_list'")
+  stdout = subprocess.check_output(check_command)
+  f.write(stdout + '\n')
+  if stdout.find('interval_list') > -1:
+    int_files = [line for line in stdout.split('\n') if line.find('interval_list') > -1]
+    inputs['intervals'] = '--intervals=%s' % int_files[0]
 
 if inputs['program'] == 'gatk':
     try:

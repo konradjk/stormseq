@@ -1,4 +1,7 @@
-import os, glob, commands, sys
+import os, glob, sys
+import subprocess, commands
+import time
+import copy
 
 ref_paths = {
   'hg19' : '/data/hg19/hg19.fa',
@@ -7,8 +10,10 @@ ref_paths = {
 dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
-amis = {'hg19': 'ami-515bf338'}
-instances = {'bwa' : 'm1.large',
+amis = {
+  'hg19': 'ami-2b238b42'}
+instances = {
+  'bwa' : 'm1.large',
   'snap' : 'm2.4xlarge'}
 
 starcluster = "sudo starcluster sshmaster stormseq".split(' ')
@@ -26,6 +31,12 @@ def qc_fail(fail_string):
     print
     print 'qc-fail'
     sys.stdout.write(fail_string)
+    sys.exit()
+
+def generic_response(output):
+    print 'Content-Type: text/html'
+    print
+    sys.stdout.write(output)
     sys.exit()
 
 def check_certs_and_setup_env(log):
@@ -112,9 +123,11 @@ def get_stats_file(parameters, ext, log):
     get_command.append("/mydata/%s" % stats_filename)
     get_command.append("/var/www/%s" % stats_filename)
     try:
-        stdout = subprocess.check_output(get_command, stderr=f)
+        stdout = subprocess.check_output(get_command, stderr=log)
     except subprocess.CalledProcessError, e:
-        f.write(str(e) + '\n')
+        log.write(str(e) + '\n')
+        log.flush()
+        sys.exit()
     log.write(stdout + '\n')
     if stats_filename.endswith('.tar.gz'):
         command = "tar zxv -C /var/www/ -f /var/www/%s" % stats_filename

@@ -10,13 +10,6 @@ from helpers import *
 
 redirect_url = "/"
 
-def qc_fail(fail_string):
-  print 'Content-Type: text/html'
-  print
-  print 'qc-fail'
-  sys.stdout.write(fail_string)
-  sys.exit()
-
 f = open("/tmp/checking_log.txt","w")
 form = cgi.FieldStorage()
 sample_name = json.loads(form.getvalue('sample_name'))
@@ -24,7 +17,10 @@ sample_name = json.loads(form.getvalue('sample_name'))
 f.write(sample_name + '\n')
 check_command = "sudo starcluster sshmaster stormseq".split(' ')
 check_command.append("'ls -1 /mydata/'")
-stdout = subprocess.check_output(check_command)
+try:
+  stdout = subprocess.check_output(check_command)
+except subprocess.CalledProcessError:
+  generic_response('no-progress')
 
 chroms = ['chr%s' % x for x in range(1,23)]
 chroms.extend(['chrX', 'chrY', 'chrM'])
