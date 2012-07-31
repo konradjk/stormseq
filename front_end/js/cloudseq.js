@@ -292,9 +292,9 @@ function make_merged_bam_chart(response_data) {
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         if (response_data['outputs']['merged_stats']) {
             chart.select('g').append("text")
-                .attr("x", w1-x1(0.5)-35)
+                .attr("x", w1-x1(0.5)-25)
                 .attr("y", h1/2+10 )
-                .text('BAM Stats done')
+                .text('Stats done')
                 .attr("fill", "white")
                 .attr('class', 'link intbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
@@ -347,7 +347,7 @@ function make_final_chart(response_data, chart, w, x, h) {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", h2/4  )
-                .text('BAM Stats done')
+                .text('Stats done')
                 .attr("fill", "white")
                 .attr('class', 'link finalbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
@@ -456,13 +456,14 @@ function get_all_data() {
         alignment_pipeline: $('#alignment-pipeline').val(),
         calling_pipeline: $('#calling-pipeline').val(),
         sample_name: $('#sample_name').val(),
-        s3_bucket: $('#results-bucket').val()
+        s3_bucket: $('#results-bucket').val(),
+        data_type: $('#data-type').val(),
+        request_type: $('#amazon-request-types input:checked').val()
     };
     $.extend(output, get_values_from_textarea($('#alignment-pipeline').val()));
     $.extend(output, get_values_from_checkboxes('gatk-clean'));
     $.extend(output, get_values_from_checkboxes($('#calling-pipeline').val()));
     $.extend(output, get_values_from_textarea($('#calling-pipeline').val()));
-    output['request_type'] = $('#amazon-request-types input:checked').val();
     $.extend(output, get_values_from_textarea('amazon'));
     return(output);
 }

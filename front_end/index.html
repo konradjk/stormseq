@@ -76,6 +76,20 @@
                   }});'>Amazon EC2 Advanced Options</span>
                   <br/><br/>
               </div>
+              <p>
+                  <span class='qtip-link' qtip-content='Select type of data analysis to optimize data output.
+                  In whole genome sequence, all regions of the genome will be output.
+                  For exome sequencing, output will be restricted to particular intervals (faster).
+                  Intervals files are available for the Illumina capture platform.
+                  Upload your own in standard intervals format (as allowed by the GATK) named as a *.interval_list file.'>
+                  Data type:
+                  </span>
+                  <select id='data-type' align='right' style='display: inline; float: right'>
+                      <option value='type_wgs'>Whole Genome Sequence</option>
+                      <option value='type_exome_illumina'>Illumina TruSeq Exome</option>
+                      <option value='type_exome_custom'>Upload your own intervals file</option>
+                  </select>
+              </p>
           </div>
           <span id="report1"></span>
       </div>
