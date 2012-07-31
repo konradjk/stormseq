@@ -256,6 +256,9 @@ function update_charts(response_data) {
     $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, update_map_chart);
 }
 function update_map_chart(response){
+    $('.intbamtext').empty()
+    $('.finalbamtext').empty()
+    $('.vcftext').empty()
     response_data = JSON.parse(response);
     files = Object.keys(response_data['initials']);
     files.sort();
@@ -285,7 +288,7 @@ function make_merged_bam_chart(response_data) {
                 .attr("y", h1/2-10 )
                 .text('Int BAM')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link intbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         if (response_data['outputs']['merged_stats']) {
             chart.select('g').append("text")
@@ -293,14 +296,15 @@ function make_merged_bam_chart(response_data) {
                 .attr("y", h1/2+10 )
                 .text('BAM Stats done')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link intbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w1-x1(0.5)-35)
                 .attr("y", h1/2+10 )
                 .text('Running stats...')
-                .attr("fill", "white");
+                .attr("fill", "white")
+                .attr('class', 'intbamtext');
         }
         chart.select('.bamrect')
           .transition().duration(speed)
@@ -336,7 +340,7 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4 - 20)
                 .text('BAM')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link finalbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         
         if (response_data['outputs']['final_stats']) {
@@ -345,13 +349,14 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4  )
                 .text('BAM Stats done')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link finalbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", h2/4  )
                 .text('Running stats...')
+                .attr('class', 'finalbamtext')
                 .attr("fill", "white");
         }
         if (response_data['outputs']['depth']) {
@@ -360,13 +365,14 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4 + 20 )
                 .text('Depth done')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link finalbamtext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", h2/4 + 20 )
                 .text('Running depth...')
+                .attr('class', 'finalbamtext')
                 .attr("fill", "white");
         }
         chart.select('.finalbamrect')
@@ -380,21 +386,23 @@ function make_final_chart(response_data, chart, w, x, h) {
             .attr("x", w2-x2(0.5)-10)
             .attr("y", 3*h2/4 - 10)
             .text('VCF')
-            .attr("fill", "white");
+            .attr("fill", "white")
+                .attr('class', 'link vcftext');
         if (response_data['outputs']['vcf_eval']) {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", 3*h2/4 + 10)
                 .text('Eval done')
                 .attr("fill", "white")
-                .attr('class', 'link')
+                .attr('class', 'link vcftext')
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", 3*h2/4 + 10)
                 .text('Running eval...')
-                .attr("fill", "white");
+                .attr("fill", "white")
+                .attr('class', 'vcftext');
         }
         chart.select('.vcfrect')
           .transition().duration(speed)

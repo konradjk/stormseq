@@ -1,5 +1,4 @@
 # Enable unsecure website with instructions
-/root/server_update.sh
 /etc/init.d/apache2 restart
 
 # Assumes that cert- and pk- are only 2 certs in /root/

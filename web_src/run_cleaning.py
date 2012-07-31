@@ -18,6 +18,7 @@ check_command = copy.deepcopy(starcluster)
 check_command.append("'qstat'")
 stdout = subprocess.check_output(check_command)
 f.write(stdout)
+f.write('length: %s' % len(stdout.split('\n')))
 while len(stdout.split('\n')) > 5:
     stdout = subprocess.check_output(check_command)
     time.sleep(10)
