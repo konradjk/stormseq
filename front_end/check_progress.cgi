@@ -68,6 +68,11 @@ for key in outputs.keys():
   outfiles = [file for file in all_files if file.find('stormseq') > -1 and file.find(key) > -1]
   outputs[key + '_file'] = outfiles[0] if key and len(outfiles) > 0 else ''
 
+outputs['merged_stats'] = int(sample_name + '.merged.stats.tar.gz' in files)
+outputs['final_stats'] = int(sample_name + '.final.stats.tar.gz' in files)
+outputs['depth'] = int(sample_name + '.depth' in files)
+outputs['vcf_eval'] = int(sample_name + '.vcf.eval' in files)
+
 out = {'initials' : initials, 'cleans' : cleans, 'outputs' : outputs}
 f.write(json.dumps(out))
 f.close()

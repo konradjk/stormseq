@@ -1,21 +1,21 @@
 import os, glob, commands, sys
 
 def get_files(this_dir, log):
-    files = glob.glob(this_dir + '/*.gz')
+    all_files = os.listdir(this_dir)
+    files = [file for file in all_files if file.endswith('.fq.gz') or file.endswith('.fastq.gz')]
     if len(files) == 0:
-      files = glob.glob(this_dir + '/*.fq')
+        files = [file for file in all_files if file.endswith('.fq')]
     if len(files) == 0:
-      files = glob.glob(this_dir + '/*.fastq')
-    log.write(','.join(files) + '\n')
+        files = [file for file in all_files if file.endswith('.fastq')]
     if len(files) == 0:
-        qc_fail('No files found')
+      qc_fail('No files found')
     if len(files) % 2:
-        qc_fail('Odd number of *' + os.path.splitext(files[0])[1] + ' files found')
+      qc_fail('Odd number of *' + os.path.splitext(files[0])[1] + ' files found')
     ext = os.path.splitext(files[0])[1]
     return (files, ext)
 
 def write_config_file(parameters, number_of_processes, log, volume_id=None):
-    amis = {'hg19': 'ami-8779d1ee'}
+    amis = {'hg19': 'ami-b759f1de'}
     instances = {'bwa' : 'm1.large',
                  'snap' : 'm2.4xlarge'}
     
@@ -29,9 +29,15 @@ def write_config_file(parameters, number_of_processes, log, volume_id=None):
         log.write(volume_info + '\n')
     parameters['volume_id'] = volume_id
     if parameters['alignment_pipeline'] == 'snap':
-      parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % parameters['hi-mem-bid']
+      try:
+        parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['hi-mem-bid'])
+      except ValueError:
+        parameters['spot_request'] = ''
     else:
-      parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % parameters['large-bid']
+      try:
+        parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['large-bid'])
+      except ValueError:
+        parameters['spot_request'] = ''
     parameters['instance'] = instance
     
     output_config = open('/root/.starcluster/config', 'w')
