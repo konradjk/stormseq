@@ -27,7 +27,7 @@ total_nodes = int(parameters['number_of_processes'])
 f.write('have:\t%s nodes\nneed:\t%s nodes\n' % (total_nodes, nodes_needed))
 f.flush()
 
-if False:
+if True:
  if total_nodes < nodes_needed:
     nodes_to_add = nodes_needed - total_nodes
     nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
@@ -46,8 +46,8 @@ if False:
         time.sleep(300)
         nodes_command = "sudo starcluster an -x -n %s -a %s stormseq" % (nodes_to_add, nodes_names_to_add)
         failed += 1
-        if failed == 5:
-          f.write('Failed 5 times. Exiting...\n')
+        if failed == 3:
+          f.write('Failed 3 times. Exiting...\n')
           sys.exit()
  elif total_nodes > nodes_needed:
     nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])

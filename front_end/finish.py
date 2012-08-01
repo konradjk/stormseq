@@ -29,8 +29,8 @@ while True:
         file_dict['mergef'] = True
       
     if not file_dict['depth'] and stdout.find('depth') == -1:
-        get_stats_file(parameters, 'depth.stats.tar.gz', f)
-        job, bucket_file = put_file_in_s3(parameters, 'depth.stats.tar.gz', 1, f)
+        get_stats_file(parameters, 'depth.tar.gz', f)
+        job, bucket_file = put_file_in_s3(parameters, 'depth.tar.gz', 1, f)
         touch_file(job, bucket_file, f)
         
         file_dict['depth'] = True

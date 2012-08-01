@@ -180,11 +180,6 @@ function setup_charts(response) {
     
     // Cleaning chart
     chroms = get_chroms();
-    data = [];
-    $.each(chroms, function(i, v) {
-        data.push(response_data['cleans'][v]);
-    });
-    
     h2 = 300;
     outer_height2 = h2 + 40;
     w2 = 420;
@@ -255,7 +250,7 @@ function setup_charts(response) {
         .style("fill", "url(#gradient)");
     update_map_chart(response);
 }
-function update_charts(response_data) {
+function update_charts() {
     $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, update_map_chart);
 }
 function update_map_chart(response){
@@ -324,6 +319,11 @@ function make_merged_bam_chart(response_data) {
     }, speed);
 }
 function make_clean_chart(response_data) {
+    data = [];
+    chroms = get_chroms();
+    $.each(chroms, function(i, v) {
+        data.push(response_data['cleans'][v]);
+    });
     var chart = d3.select("#progress-chart-2");
     chart.selectAll("rect")
         .data(data)
@@ -351,7 +351,7 @@ function make_final_chart(response_data, chart, w, x, h) {
         
         if (response_data['outputs']['final_stats']) {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
+                .attr("x", w2-x2(0.5)-23)
                 .attr("y", h2/4  )
                 .text('Stats done')
                 .attr("fill", "white")

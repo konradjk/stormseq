@@ -57,11 +57,11 @@ def run_gatk_commands(command):
   print exit_status, stdout
 
 # 6. Find regions to realign
-command = 'java -Xmx4g -jar %s -T RealignerTargetCreator -L %s -R %s -I %s -o %s' % (gatk_binary, chromosome, ref, nodup_bam, realign_intervals)
+command = 'java -Xmx4g -jar %s -T RealignerTargetCreator -L %s -R %s -I %s --known %s -o %s' % (gatk_binary, chromosome, ref, nodup_bam, dbsnp, realign_intervals)
 run_gatk_commands(command)
 
 # 7. Indel realignment
-command = 'java -Xmx6g -jar %s -T IndelRealigner -L %s -R %s -I %s -o %s --targetIntervals %s' % (gatk_binary, chromosome, ref, nodup_bam, realigned_bam, realign_intervals)
+command = 'java -Xmx6g -jar %s -T IndelRealigner -L %s -R %s -I %s -o %s --knownAlleles %s --targetIntervals %s' % (gatk_binary, chromosome, ref, nodup_bam, realigned_bam, dbsnp, realign_intervals)
 run_gatk_commands(command)
 
 # 8. Count Covariates
