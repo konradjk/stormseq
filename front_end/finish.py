@@ -3,10 +3,21 @@ import commands, subprocess
 from helpers import *
 
 f = open("/tmp/final_log.txt","w")
-parameters = json.loads(sys.argv[1])
+
+config_file = sys.argv[1]
+with open(config_file) as cnf:
+  input = json.loads(cnf.readline())
+
+files = input['files']
+sample = input['sample']
+parameters = input['parameters']
+parameters['sample_name'] = sample
+setup_s3cfg(parameters)
+
 f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
 f.flush()
-check_command = "sudo starcluster sshmaster stormseq 'qstat'"
+
+check_command = "sudo starcluster sshmaster stormseq_%s 'qstat'" % sample
 es, stdout = commands.getstatusoutput(check_command)
 
 # Check for jobs being done

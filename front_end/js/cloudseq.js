@@ -1,23 +1,12 @@
 $(document).ready(function(){     
     speed = 500;
-    $('#check_files_button').button().click(function() {
-    $(this).button('disable');
-    $('#qc-status').empty();
-    $('#qc-status').append('Verifying data and files... <img src="images/busy.gif" />');
-    $('#check_files_button').button("option","disabled",true);
-    $.post("creds_and_qc.cgi", { all_objects: JSON.stringify(get_all_data()) },
-        function(response){
-            qc_handle_response(response);
-        }
-    );
-    });
-    $('#start_button').button({disabled:true});
+    $('#start_button').button({disabled:false});
     $('#start_button').click(function() {
         $(this).button('disable');
         $('#run-status').empty();
         $('#run-status').append('Doing final checks and starting cluster... <img src="images/busy.gif" /><br/>');
         $('#run-status').append('(This may take several minutes.)');
-        $.post("run_mapping.cgi", { all_objects: JSON.stringify(get_all_data()) },
+        $.post("start_pipeline.cgi", { all_objects: JSON.stringify(get_all_data()) },
             function(response){
                 mapping_handle_response(response);
             }
@@ -70,34 +59,37 @@ $(document).ready(function(){
     $('.autosave_restore').click();
     $('textarea').autosave({cookieExpiryLength: 30});
     $('.autosave_restore').click();
-    progress_id = setInterval(update_charts, 300000);
     refresh_vis();
 });
 
 function refresh_vis() {
     $('#visualize-results').empty();
-    $.post('visualize.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, function(response) {
-        $('#visualize-results').append(response);
+    $('#visualize-results').append('Refreshing results... <img src="images/busy.gif" />');
+    $.post('visualize.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, function(response) {
+      $('#visualize-results').empty();
+      $('#visualize-results').append(response);
     });
 }
 
 function click_refresh_progress() {
-    $('#progress-chart').empty();
-    $('#progress-chart-2').empty();
-    
-    $('#progress-chart').append('Checking progress... <img src="images/busy.gif" />');
-    $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, setup_charts);
+    $('#all-progress-charts').empty();
+    $('#all-progress-charts').append('Checking progress... <img src="images/busy.gif" />');
+
+    $.post('check_progress.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, setup_charts);
 }
-function setup_charts(response) {
-    if (response == 'no-progress') {
-      return false;
-    }
-    $('#progress-chart').empty();
-    $('#progress-chart-2').empty();
-    response_data = JSON.parse(response);
-    
+function setup_charts(all_responses) {
+  if (all_responses == 'no-progress') {
+    return false;
+  }
+  $('#all-progress-charts').empty();
+  all_response_data = JSON.parse(all_responses);
+  $.each(all_response_data, function(sample, response_data) {
+    $('#all-progress-charts').append("<h4>" + sample + "</h4>");
+    $('#all-progress-charts').append("<span id='progress-chart-" + sample + "'></span>");
+    $('#all-progress-charts').append("<span id='progress-chart-2-" + sample + "'></span><br/>");
     // Mapping chart
     var files = Object.keys(response_data['initials']);
+    files.sort();
     var text_width = 7*Math.max.apply(Math, $.map(files, function(a) { return a.length }));
     h1 = 300;
     outer_height1 = h1 + 40;
@@ -106,7 +98,7 @@ function setup_charts(response) {
     x1 = d3.scale.linear().domain([0, 5]).range([0, w1]);
     y1 = d3.scale.ordinal().domain(d3.range(files.length)).rangeBands([0, h1], .2);
     
-    var chart = d3.select("#progress-chart").append("svg")
+    var chart = d3.select("#progress-chart-" + sample).append("svg")
         .attr("class", "chart")
         .attr("width", outer_width1)
         .attr("height", outer_height1)
@@ -138,7 +130,7 @@ function setup_charts(response) {
         .attr("height", h1/files.length)
         .style("fill", "url(#gradient)");
     
-    chart.append("rect").attr('class', 'bamrect')
+    chart.append("rect").attr('class', 'bamrect ' + sample)
         .attr("x", w1-x1(1))
         .attr("y", 0 )
         .attr("width", 0)
@@ -187,7 +179,7 @@ function setup_charts(response) {
     x2 = d3.scale.linear().domain([0, 6]).range([0, w2]);
     y2 = d3.scale.ordinal().domain(d3.range(chroms.length)).rangeBands([0, h2], .2);
     
-    var chart = d3.select("#progress-chart-2").append("svg")
+    var chart = d3.select("#progress-chart-2-" + sample).append("svg")
         .attr("class", "chart")
         .attr("width", outer_width2)
         .attr("height", outer_height2)
@@ -236,38 +228,44 @@ function setup_charts(response) {
        .attr("dy", ".35em")
        .attr("text-anchor", "end")
        .text(function(d, i) { return chroms[i]; });
-    chart.append("rect").attr('class', 'finalbamrect')
+    chart.append("rect").attr('class', 'finalbamrect ' + sample)
             .attr("x", w2-x2(1))
             .attr("y", 0 )
             .attr("width", 0)
             .attr("height", h2/2 )
             .style("fill", "url(#gradient)");
-    chart.append("rect").attr('class', 'vcfrect')
+    chart.append("rect").attr('class', 'vcfrect ' + sample)
         .attr("x", w2-x2(1))
         .attr("y", h2/2 )
         .attr("width", 0)
         .attr("height", h2/2 )
         .style("fill", "url(#gradient)");
-    update_map_chart(response);
+    if (typeof progress_id === undefined) {
+      progress_id = setInterval(update_charts, 300000);
+    }
+  });
+  update_map_charts(all_responses);
 }
 function update_charts() {
-    $.post('check_progress.cgi', { sample_name: JSON.stringify($('#sample_name').val()) }, update_map_chart);
+    $.post('check_progress.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, update_map_charts);
 }
-function update_map_chart(response){
-    if (response == 'no-progress') {
-      return false;
-    }
-    $('.intbamtext').empty()
-    $('.finalbamtext').empty()
-    $('.vcftext').empty()
-    response_data = JSON.parse(response);
+function update_map_charts(all_responses){
+  if (all_responses == 'no-progress') {
+    return false;
+  }
+  all_response_data = JSON.parse(all_responses);
+  $.each(all_response_data, function(sample, response_data) {
+    $('.intbamtext.' + sample).empty()
+    $('.finalbamtext.' + sample).empty()
+    $('.vcftext.' + sample).empty()
+
     files = Object.keys(response_data['initials']);
     files.sort();
     map_data = [];
     $.each(files, function(i, v) {
         map_data.push(response_data['initials'][v]);
     });
-    var chart = d3.select("#progress-chart");
+    var chart = d3.select("#progress-chart-" + sample);
     chart.selectAll("rect")
         .data(map_data)
       .transition().duration(speed)
@@ -277,19 +275,21 @@ function update_map_chart(response){
         .style("fill", "url(#gradient)");
         
     setTimeout(function() {
-      make_merged_bam_chart(response_data)
+      make_merged_bam_chart(sample, response_data)
     }, speed);
+  });
 }
-function make_merged_bam_chart(response_data) {
+function make_merged_bam_chart(sample, response_data) {
     $('#download-results').empty();
-    var chart = d3.select("#progress-chart");
+    var chart = d3.select("#progress-chart-" + sample);
     if (response_data['outputs']['merged']) {
+        refresh_vis();
         chart.select('g').append("text")
                 .attr("x", w1-x1(0.5)-18)
                 .attr("y", h1/2-10 )
                 .text('Int BAM')
                 .attr("fill", "white")
-                .attr('class', 'link intbamtext')
+                .attr('class', 'link intbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         if (response_data['outputs']['merged_stats']) {
             chart.select('g').append("text")
@@ -297,7 +297,7 @@ function make_merged_bam_chart(response_data) {
                 .attr("y", h1/2+10 )
                 .text('Stats done')
                 .attr("fill", "white")
-                .attr('class', 'link intbamtext')
+                .attr('class', 'link intbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
@@ -305,9 +305,9 @@ function make_merged_bam_chart(response_data) {
                 .attr("y", h1/2+10 )
                 .text('Running stats...')
                 .attr("fill", "white")
-                .attr('class', 'intbamtext');
+                .attr('class', 'intbamtext ' + sample);
         }
-        chart.select('.bamrect')
+        chart.select('.bamrect.' + sample)
           .transition().duration(speed)
             .attr("width", x1(1))
             .attr("height", h1 )
@@ -315,16 +315,16 @@ function make_merged_bam_chart(response_data) {
         $('#download-results').append("<a href='https://console.aws.amazon.com/s3/home' target='_blank'>Download files in your S3 Bucket</a><br/><br/>");
     }
     setTimeout(function() {
-      make_clean_chart(response_data)
+      make_clean_chart(sample, response_data)
     }, speed);
 }
-function make_clean_chart(response_data) {
+function make_clean_chart(sample, response_data) {
     data = [];
     chroms = get_chroms();
     $.each(chroms, function(i, v) {
         data.push(response_data['cleans'][v]);
     });
-    var chart = d3.select("#progress-chart-2");
+    var chart = d3.select("#progress-chart-2-" + sample);
     chart.selectAll("rect")
         .data(data)
       .transition().duration(speed)
@@ -334,11 +334,11 @@ function make_clean_chart(response_data) {
         .style("fill", "url(#gradient)");
     
     setTimeout(function() {
-      make_final_chart(response_data)
+      make_final_chart(sample, response_data)
     }, speed);
 }
-function make_final_chart(response_data, chart, w, x, h) {
-    var chart = d3.select("#progress-chart-2");
+function make_final_chart(sample, response_data) {
+    var chart = d3.select("#progress-chart-2-" + sample);
     if (response_data['outputs']['final']) {
         
         chart.select('g').append("text")
@@ -346,7 +346,7 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4 - 20)
                 .text('BAM')
                 .attr("fill", "white")
-                .attr('class', 'link finalbamtext')
+                .attr('class', 'link finalbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         
         if (response_data['outputs']['final_stats']) {
@@ -355,14 +355,14 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4  )
                 .text('Stats done')
                 .attr("fill", "white")
-                .attr('class', 'link finalbamtext')
+                .attr('class', 'link finalbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", h2/4  )
                 .text('Running stats...')
-                .attr('class', 'finalbamtext')
+                .attr('class', 'finalbamtext ' + sample)
                 .attr("fill", "white");
         }
         if (response_data['outputs']['depth']) {
@@ -371,17 +371,17 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", h2/4 + 20 )
                 .text('Depth done')
                 .attr("fill", "white")
-                .attr('class', 'link finalbamtext')
+                .attr('class', 'link finalbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", h2/4 + 20 )
                 .text('Running depth...')
-                .attr('class', 'finalbamtext')
+                .attr('class', 'finalbamtext ' + sample)
                 .attr("fill", "white");
         }
-        chart.select('.finalbamrect')
+        chart.select('.finalbamrect.' + sample)
           .transition().duration(speed)
             .attr("width", x2(1))
             .attr("height", h2/2 )
@@ -393,14 +393,14 @@ function make_final_chart(response_data, chart, w, x, h) {
             .attr("y", 3*h2/4 - 10)
             .text('VCF')
             .attr("fill", "white")
-                .attr('class', 'link vcftext');
+                .attr('class', 'link vcftext ' + sample);
         if (response_data['outputs']['vcf_eval']) {
             chart.select('g').append("text")
                 .attr("x", w2-x2(0.5)-35)
                 .attr("y", 3*h2/4 + 10)
                 .text('Eval done')
                 .attr("fill", "white")
-                .attr('class', 'link vcftext')
+                .attr('class', 'link vcftext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
@@ -408,9 +408,9 @@ function make_final_chart(response_data, chart, w, x, h) {
                 .attr("y", 3*h2/4 + 10)
                 .text('Running eval...')
                 .attr("fill", "white")
-                .attr('class', 'vcftext');
+                .attr('class', 'vcftext ' + sample);
         }
-        chart.select('.vcfrect')
+        chart.select('.vcfrect.' + sample)
           .transition().duration(speed)
             .attr("width", x2(1))
             .attr("height", h2/2 )
@@ -461,7 +461,7 @@ function get_all_data() {
         dbsnp_version: $('#dbsnp-version').val(),
         alignment_pipeline: $('#alignment-pipeline').val(),
         calling_pipeline: $('#calling-pipeline').val(),
-        sample_name: $('#sample_name').val(),
+        sample_names: $('#sample_name').val().split('\n'),
         s3_bucket: $('#results-bucket').val(),
         data_type: $('#data-type').val(),
         request_type: $('#amazon-request-types input:checked').val()
@@ -516,8 +516,8 @@ function refresh_spot_prices() {
     $.post("get_current_prices.cgi", { all_objects: JSON.stringify(get_all_data()) },
         function(response){
             prices = response.split(',');
-            $('#large-current-price').text(prices[0]);
-            $('#hi-mem-current-price').text(prices[1]);
+            $('#large-current-price').html(prices[0]);
+            $('#hi-mem-current-price').html(prices[1]);
         }
     );
 }

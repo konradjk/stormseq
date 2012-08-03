@@ -4,6 +4,7 @@ import subprocess
 from optparse import OptionParser
 import commands, subprocess
 from multiprocessing import Process
+from helpers import *
 
 root = '/usr/local/bin/'
 
@@ -13,11 +14,18 @@ parser.add_option('--fq2', help='FASTQ file, pair 2')
 parser.add_option('--reference', help='Genome index directory')
 parser.add_option('--platform', help='Platform', default='Illumina')
 parser.add_option('--sample', help='Sample', default='Me')
+parser.add_option('--output', help='Output directory')
 
 (options, args) = parser.parse_args()
 
-fq1 = options.fq1
-fq2 = options.fq2
+s3_fq1 = options.fq1
+s3_fq2 = options.fq2
+fq1 = os.path.join('/mnt/', os.path.basename(s3_fq1))
+fq2 = os.path.join('/mnt/', os.path.basename(s3_fq2))
+stdout = commands.getoutput("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, fq1))
+if s3_fq1 != s3_fq2:
+  stdout = commands.getoutput("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq2, fq2))
+
 ref = options.reference
 platform = options.platform
 sample = options.sample
@@ -25,6 +33,15 @@ sample = options.sample
 snap_binary = '%s/snap' % root
 samtools_binary = '%s/samtools' % root
 picard_binary = '%s/picard/AddOrReplaceReadGroups.jar' % root
+
+file_root = os.path.basename(fq1)
+sai1 = fq1 + '.sai'
+sai2 = fq2 + '.sai'
+sam = fq1 + '.sam'
+rg_bam = fq1 + '.rg.bam'
+bam = fq1 + '.raw.bam'
+sorted_bam = options.output + file_root + '.sorted.bam'
+sorted_bam_prefix = options.output + file_root + '.sorted'
 
 gzip = fq1.endswith('.gz')
 # 1. Unzip files if zipped
@@ -41,14 +58,7 @@ if gzip:
   fq1 = os.path.splitext(fq1)[0]
   fq2 = os.path.splitext(fq2)[0]
 
-sam = fq1.replace('_1.fq', '.sam')
-bam = sam.replace('.sam', '.raw.bam')
-rg_bam = sam.replace('.sam', '.rg.bam')
-sorted_bam = bam.replace('.raw.bam', '.sorted.bam')
-sorted_bam_prefix = sorted_bam.replace('.bam', '')
-
-read_group_id = sam.replace('.sam', '')
-rg_format = "\'@RG\\tID:%s\\tSM:%s\\tPL:%s\\tLB:%s\'" % (read_group_id, sample, platform, sample)
+read_group_id = file_root
 
 # 2. SAMPE
 exit_status, stdout = commands.getstatusoutput('%s paired %s %s %s -o %s' % (snap_binary, ref, fq1, fq2, sam))

@@ -240,20 +240,18 @@
               We are not responsible for failed jobs due to spot request bids, and we recommend setting a bid price somewhat higher than the current price.'>Spot Request</label>
           </div>
           <h4>All alignment jobs</h4>
-          Large instance bid (current price: $<span id='large-current-price'></span>): $<textarea id='large-bid' rows='1' cols='5'>0.10</textarea>
+          Large instance bid: $<textarea id='large-bid' rows='1' cols='5'>0.10</textarea>
+          <br/>30 day history:
+          <div id='large-current-price'></div>
           <h4>SNAP only</h4>
-          High-memory instance bid (current price: $<span id='hi-mem-current-price'></span>): $<textarea id='hi-mem-bid' rows='1' cols='5'>0.50</textarea>
-          <br/>
-          If an Error is displayed for the prices, please click <span class='link' onclick='refresh_spot_prices();'>refresh</span>.
+          High-memory instance bid: $<textarea id='hi-mem-bid' rows='1' cols='5'>0.50</textarea>
+          <br/>30 day history:
+            <div id='hi-mem-current-price'></div>
+          If price history is not displayed, please enter your Access Key ID and Secret Access Key on the previous page
+          and click <span class='link' onclick='refresh_spot_prices();'>refresh</span>.
       </div>
       <div id="step3" class="easy-box disabled">
           <h3>Start processing</h3>
-          <p>
-              <button id='check_files_button' class='btn green' style='height:30px'>Verify Amazon Data and Files</button>
-          </p>
-          <br/>
-              <div id='qc-status'></div>
-          <br/>
           <p>
               <button id='start_button' class='btn green' style='height:80px; font-size:5.0em;'>GO!</button>
           </p>
@@ -270,8 +268,8 @@
       <div id="progress">
           <h3>Pipeline progress</h3>
           <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.<br/></small>
-          <span id='progress-chart'></span>
-          <span id='progress-chart-2'></span>
+          <div id='all-progress-charts'>
+          </div>
       </div>
       
       <div id="download">

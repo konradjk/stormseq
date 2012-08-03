@@ -23,6 +23,8 @@ picard_stats_binary = '%s/picard/CollectMultipleMetrics.jar' % root
 
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s %s O=%s %s' % (picard_merge_binary, input, options.output, ' '.join(picard_options)))
 print exit_status, stdout
+for file in options.bams.split(','):
+  open(file, 'w').close()
 
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s I=%s O=%s VALIDATION_STRINGENCY=SILENT' % (picard_stats_binary, options.output, stats_file))
 print exit_status, stdout

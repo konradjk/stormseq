@@ -17,7 +17,7 @@ f = open("/tmp/qc_log.txt","w")
 f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
 f.flush()
 
-files, ext = get_files('/mnt/stormseq_data', f)
+files, ext = get_files(parameters, f)
 
 file_headers = defaultdict(dict)
 # Override open for convenience

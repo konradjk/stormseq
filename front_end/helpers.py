@@ -2,6 +2,8 @@ import os, glob, sys
 import subprocess, commands
 import time
 import copy
+import shutil
+from collections import defaultdict
 
 ref_paths = {
   'hg19' : '/data/hg19/hg19.fa',
@@ -11,12 +13,10 @@ dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-2b238b42'}
+  'hg19': 'ami-3d862d54'}
 instances = {
   'bwa' : 'm1.large',
   'snap' : 'm2.4xlarge'}
-
-starcluster = "sudo starcluster sshmaster stormseq".split(' ')
 
 # Failure types
 def cluster_fail(fail_string):
@@ -30,6 +30,13 @@ def qc_fail(fail_string):
     print 'Content-Type: text/html'
     print
     print 'qc-fail'
+    sys.stdout.write(fail_string)
+    sys.exit()
+    
+def file_error(fail_string):
+    print 'Content-Type: text/html'
+    print
+    print 'file-fail'
     sys.stdout.write(fail_string)
     sys.exit()
 
@@ -60,68 +67,106 @@ def get_job_id(input_string):
             return line.split()[2]
     return None
 
-def get_files(this_dir, log):
-    all_files = [os.path.join(this_dir, file) for file in os.listdir(this_dir)]
-    files = [file for file in all_files if file.endswith('.fq.gz') or file.endswith('.fastq.gz')]
-    if len(files) == 0:
-        files = [file for file in all_files if file.endswith('.fq')]
-    if len(files) == 0:
-        files = [file for file in all_files if file.endswith('.fastq')]
-    if len(files) == 0:
-      qc_fail('No files found')
-    if len(files) % 2:
-      qc_fail('Odd number of *' + os.path.splitext(files[0])[1] + ' files found')
-    ext = os.path.splitext(files[0])[1]
-    return (files, ext)
+def setup_s3cfg(parameters, outfile=None):
+    outfile = outfile if outfile is not None else '/root/.s3cfg'
+    shutil.copyfile('/root/.s3cfg_orig', outfile)
+    output_config = open(outfile, 'a')
+    output_config.write('''
+access_key = %(access_key_id)s
+secret_key = %(secret_access_key)s
+''' % (parameters))
+    output_config.close()
 
-def write_config_file(parameters, number_of_processes, log, volume_id=None):
-    exit_status, instance = commands.getstatusoutput('ec2-describe-instances --filter tag:Name=stormseq --filter instance-state-name=running | grep ^INSTANCE | cut -f2')
-    parameters['number_of_processes'] = number_of_processes
-    parameters['ami'] = amis[parameters['genome_version']]
-    parameters['instance_type'] = instances[parameters['alignment_pipeline']]
-    if volume_id is None:
-        exit_status, volume_info = commands.getstatusoutput('ec2-describe-volumes -F tag:Name=stormseq_data | grep ^VOLUME')
-        volume_id = volume_info.split()[1]
-        log.write(volume_info + '\n')
-    parameters['volume_id'] = volume_id
-    if parameters['alignment_pipeline'] == 'snap':
-      try:
-        parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['hi-mem-bid'])
-      except ValueError:
-        parameters['spot_request'] = ''
-    else:
-      try:
-        parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['large-bid'])
-      except ValueError:
-        parameters['spot_request'] = ''
-    parameters['instance'] = instance
-    
+def check_files(parameters, dir, log):
+    directory = 's3://%s/' % (parameters['s3_bucket'])
+    directory += '' if dir is None else '%s/' % dir
+    command = 'sudo s3cmd ls %s' % directory
+    log.write(command + '\n')
+    try:
+        file_info = subprocess.check_output(command.split()).strip().split('\n')
+    except subprocess.CalledProcessError, e:
+        return None, None
+    #log.write('\n'.join(file_info))
+    allowed_exts = ['.bam', '.fq', '.fastq', '.gz']
+    if len(file_info) == 0:
+        return None, None
+    files = [line.strip().split()[3] for line in file_info if not line.endswith('/')]
+    ext = os.path.splitext(files[0])[1]
+    if ext not in allowed_exts:
+        return None, None
+    command = 'sudo s3cmd get %s -'
+    command += ' | zcat | head -4' if ext == '.gz' else ' | head -4'
+    output_files = defaultdict(dict)
+    for file in files:
+        if ext == '.bam':
+            output_files[read]['1'] = file
+            output_files[read]['2'] = file
+        else:
+            this_command = command % file
+            #log.write(this_command + '\n')
+            head_lines = commands.getoutput(this_command).split('\n')
+            first_line = head_lines[0].strip().split('/')
+            #log.write(head_lines[0] + '\n')
+            if len(first_line) != 2:
+                qc_fail('Malformed paired end file (read name should have /1 or /2 tag)')
+            read, pair = first_line
+            output_files[read][pair] = file
+    return (output_files, ext)
+
+
+def write_basic_config_file(parameters, sample):
+    parameters['sample'] = sample
     output_config = open('/root/.starcluster/config', 'w')
-    log.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
-    in_string = open('/root/default_starcluster_config.txt').read()
+    in_string = open('/root/basic_starcluster_config.txt').read()
     output_config.write(in_string % parameters)
     output_config.close()
-    return parameters
+
+def replace_zone_in_config_file(zone, sample):
+    with open('/root/.starcluster/config', 'r') as cnf:
+        config = cnf.readlines()
+    for i, line in enumerate(reversed(config)):
+        if line.find('AVAILABILITY_ZONE') > -1:
+            config[len(config) - i] = 'AVAILABILITY_ZONE = %s\n' % zone
+            break
+    with open('/root/.starcluster/config', 'w') as cnf:
+      cnf.write(''.join(config))
+
+def add_to_config_file(parameters, sample):
+    parameters['sample'] = sample
+    parameters['ami'] = amis[parameters['genome_version']]
+    parameters['instance_type'] = instances[parameters['alignment_pipeline']]
+    bid = parameters['hi-mem-bid'] if parameters['instance_type'] == 'm2.4xlarge' else parameters['large-bid']
+    try:
+      parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(bid)
+    except ValueError:
+      parameters['spot_request'] = ''
+    
+    output_config = open('/root/.starcluster/config', 'a')
+    in_string = open('/root/add_starcluster_config.txt').read()
+    output_config.write(in_string % parameters)
+    output_config.close()
+    
+def add_volume_to_config_file(volume, sample):
+    output_config = open('/root/.starcluster/config', 'a')
+    in_string = open('/root/volume_starcluster_config.txt').read()
+    output_config.write(in_string % { 'volume': volume, 'sample': sample })
+    output_config.close()
 
 # Later on
-def put_file_in_s3(parameters, type, hold, log):
-    upload_command = "sudo starcluster sshmaster stormseq".split(' ')
+def put_file_in_s3(sample, fname, bucket, hold):
+    upload_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
     current_date = time.strftime("%d%m%Y", time.gmtime())
-    local_file = '/mydata/%s.%s' % (parameters['sample_name'], type)
-    bucket_file = '%s_stormseq_%s.%s' % (parameters['sample_name'], current_date, type)
-    cmd_opts = (hold, parameters['access_key_id'], parameters['secret_access_key'], local_file, parameters['s3_bucket'], bucket_file)
-    args = "'qsub -hold_jid %s -cwd -b y python /root/s3afe.py --aws_access_key_id=%s --aws_secret_access_key=%s --filename=%s --bucketname=%s --keyname=%s'" % cmd_opts
+    bucket_file = '%s_%s.%s' % (os.path.splitext(fname)[0], current_date, os.path.splitext(fname)[1])
+    args = "'qsub -hold_jid %s -cwd -b y s3cmd put /mydata/%s s3://%s/%s'" % (job, fname, bucket, bucket_file)
     upload_command.append(args)
     stdout = subprocess.check_output(upload_command, stderr=subprocess.PIPE)
     job = get_job_id(stdout)
-    log.write('Getting from: %s\n' % str(stdout))
     return (job, bucket_file)
 
-def get_stats_file(parameters, ext, log):
-    get_command = "sudo starcluster get stormseq".split(' ')
-    stats_filename = "%s.%s" % (parameters['sample_name'], ext)
-    get_command.append("/mydata/%s" % stats_filename)
-    get_command.append("/var/www/%s" % stats_filename)
+def get_stats_file(sample, fname, log):
+    get_command = ("sudo starcluster get stormseq_%s" % sample).split(' ')
+    get_command.append("/mydata/%s" % fname)
+    get_command.append("/var/www/%s" % fname)
     try:
         stdout = subprocess.check_output(get_command, stderr=log)
     except subprocess.CalledProcessError, e:
@@ -129,8 +174,8 @@ def get_stats_file(parameters, ext, log):
         log.flush()
         sys.exit()
     log.write(stdout + '\n')
-    if stats_filename.endswith('.tar.gz'):
-        command = "tar zxv -C /var/www/ -f /var/www/%s" % stats_filename
+    if fname.endswith('.tar.gz'):
+        command = "tar zxv -C /var/www/ -f /var/www/%s" % fname
         log.write(command + '\n')
         stdout = subprocess.check_output(command.split())
         log.write(stdout + '\n')

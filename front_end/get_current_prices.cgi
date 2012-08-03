@@ -3,37 +3,29 @@ import cgi
 import os, glob, sys
 import commands
 import cgitb; cgitb.enable()  # for troubleshooting
-import datetime
+import json
+from helpers import *
 
 redirect_url = "/"
 
-f = open('/tmp/price.log', 'w')
-pk = glob.glob('/root/pk-*pem')
-cert = glob.glob('/root/cert-*pem')
-if len(pk) > 0 and len(cert) > 0:
-  os.environ['EC2_PRIVATE_KEY'] = pk[0]
-  os.environ['EC2_CERT'] = cert[0]
-else:
-  print 'Content-Type: text/html'
-  print
-  sys.stdout.write('Error,Error')
-  sys.exit()
-f.write('here\n')
+f = open('/tmp/price_log.txt', 'w')
+def get_price(type):
+  out = [line for line in commands.getoutput("sudo starcluster shi %s" % type).split('\n') if line.find('price') > -1]
+  return '<br/>'.join(out)
 
-week_ago = (datetime.datetime.utcnow()-datetime.timedelta(7)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
-exit_status, price_info = commands.getstatusoutput('ec2-describe-spot-price-history -d Linux/UNIX -t m2.4xlarge -t m1.large -a us-east-1b -s %s' % week_ago)
+form = cgi.FieldStorage()
+parameters = json.loads(form.getvalue('all_objects'))
+parameters['sample'] = ''
+f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
+f.flush()
 
-current_prices = {}
-max_prices = {}
-for entry in price_info.split('\n'):
-  fields = entry.strip().split()
-  if fields[3] not in current_prices:
-    current_prices[fields[3]] = fields[1]
-    max_prices[fields[3]] = fields[1]
-  if fields[1] > max_prices[fields[3]]:
-    max_prices[fields[3]] = fields[1]
+if not os.path.isfile('/root/.starcluster/config') or commands.getstatusoutput('sudo starcluster shi m1.large')[1].find('AuthFailure') > -1:
+  write_basic_config_file(parameters, '')
 
-f.close()
+large_price = get_price('m1.large')
+hi_mem_price = get_price('m2.4xlarge')
+f.write(large_price + '\n' + hi_mem_price)
+
 print 'Content-Type: text/html'
 print
-sys.stdout.write('%.5s,%.5s' % (current_prices['m1.large'], current_prices['m2.4xlarge']))
+sys.stdout.write('%s,%s' % (large_price, hi_mem_price))

@@ -31,14 +31,16 @@ redirect_url = "/"
 
 f = open("/tmp/vis_log.txt","w")
 form = cgi.FieldStorage()
-sample_name = json.loads(form.getvalue('sample_name'))
+sample_names = json.loads(form.getvalue('sample_names'))
 
 print 'Content-Type: text/html'
 print
-if check_file(sample_name, 'merged'):
-  parse_bam_stats(sample_name, 'merged')
-if check_file(sample_name, 'final'):
-  parse_bam_stats(sample_name, 'final')
-if check_file(sample_name, 'vcf'):
-  parse_vcf_eval(sample_name)
+for sample_name in sample_names:
+  print "<h4>%s Results:</h4>" % (sample_name)
+  if check_file(sample_name, 'merged'):
+    parse_bam_stats(sample_name, 'merged')
+  if check_file(sample_name, 'final'):
+    parse_bam_stats(sample_name, 'final')
+  if check_file(sample_name, 'vcf'):
+    parse_vcf_eval(sample_name)
   
