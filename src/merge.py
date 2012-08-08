@@ -11,6 +11,7 @@ root = '/usr/local/bin/'
 parser = OptionParser()
 parser.add_option('--bams', help='Sorted BAM files')
 parser.add_option('--output', help='Sample', default='Me')
+parser.add_option('--delete', action='store_true', help='Delete input files', default=False)
 
 (options, args) = parser.parse_args()
 
@@ -23,15 +24,15 @@ picard_stats_binary = '%s/picard/CollectMultipleMetrics.jar' % root
 
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s %s O=%s %s' % (picard_merge_binary, input, options.output, ' '.join(picard_options)))
 print exit_status, stdout
-for file in options.bams.split(','):
-  open(file, 'w').close()
+if options.delete:
+  [open(lane, 'w').close() for lane in options.bams.split(',')]
 
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s I=%s O=%s VALIDATION_STRINGENCY=SILENT' % (picard_stats_binary, options.output, stats_file))
 print exit_status, stdout
 
-time.sleep(120)
+time.sleep(30)
 exit_status, stdout = commands.getstatusoutput('tar zcv %s* > %s.tar.gz' % (stats_file, stats_file))
 print exit_status, stdout
 
-exit_status, stdout = commands.getstatusoutput('touch %s.done' % (options.output))
-print exit_status, stdout
+#exit_status, stdout = commands.getstatusoutput('touch %s.done' % (options.output))
+#print exit_status, stdout

@@ -2,8 +2,6 @@ import time, json, sys, copy, glob
 import commands, subprocess
 from helpers import *
 
-f = open("/tmp/cleaning_log.txt", "w")
-
 config_file = sys.argv[1]
 with open(config_file) as cnf:
   input = json.loads(cnf.readline())
@@ -14,9 +12,12 @@ parameters = input['parameters']
 parameters['sample_name'] = sample
 setup_s3cfg(parameters)
 
+f = open("/tmp/cleaning_log_%s.txt" % sample, "w")
+
 f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
 f.flush()
 
+time.sleep(300)
 check_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
 check_command.append("'qstat'")
 stdout = subprocess.check_output(check_command)
@@ -64,9 +65,10 @@ if True:
     nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])
     nodes_command = "sudo starcluster rn %s stormseq_%s" % (nodes_to_remove, sample)
     exit_status = subprocess.call(nodes_command.split(' '), stdout=f)
-        
+
 clean_qsub = 'qsub -b y -cwd python clean.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --platform=%(platform)s --covariates=%(covariates)s --chromosome=%(chromosome)s %(intervals)s'
-call_qsub = 'qsub -hold_jid %(hold)s -b y -cwd python %(program)s-call.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --chromosome=%(chromosome)s %(intervals)s'
+call_qsub = 'qsub -hold_jid %(hold)s -b y -cwd python %(program)s-call.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --chromosome=%(chromosome)s %(intervals)s %(indels)s'
+
 f.write(clean_qsub + '\n' + call_qsub + '\n')
 chroms = ['chr%s' % x for x in range(1,23)]
 chroms.extend(['chrX', 'chrY', 'chrM'])
@@ -80,7 +82,8 @@ inputs = {
   'platform' : 'Illumina',
   'covariates' : ','.join([x for x in possible_covariates if parameters[x]]),
   'program': parameters['calling_pipeline'],
-  'intervals': '' }
+  'intervals': '',
+  'indels' : '--indels' if parameters['indel_calling'] else ''}
 
 starcluster = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
 
@@ -122,7 +125,7 @@ for chrom in chroms:
     all_clean_jobs.append(job)
     inputs['hold'] = job
     
-    # Variant calling
+    # SNP and Indel calling
     chrom_job = copy.deepcopy(starcluster)
     chrom_job.append("'" + call_qsub % inputs + "'")
     f.write(' '.join(chrom_job) + '\n')
@@ -130,6 +133,10 @@ for chrom in chroms:
     job = get_job_id(stdout)
     f.write(stdout + '\n')
     all_call_jobs.append(job)
+    
+    # SV calling
+    if parameters['sv_calling']:
+      pass
 
 priority = ','.join(chroms)
 all_bams = ','.join(['/mydata/' + parameters['sample_name'] + '_' + chrom + '.recal.bam' for chrom in chroms])
@@ -141,6 +148,12 @@ exit_status, stdout = commands.getstatusoutput(merge_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')
 
+merge_command = "sudo starcluster sshmaster stormseq_%s" % sample
+merge_command += " 'qsub -hold_jid %s -b y -cwd touch /mydata/%s.done'" % (job, parameters['sample_name'] + '.final.bam.done')
+f.write(merge_command)
+exit_status, stdout = commands.getstatusoutput(merge_command)
+f.write(stdout + '\n')
+
 depth_command = "sudo starcluster sshmaster stormseq_%s" % sample
 depth_command += " 'qsub -hold_jid %s -b y -cwd -N depth python depth.py --reference=%s --input=/mydata/%s.final.bam --output=/mydata/%s.depth'" % (job, ref_paths[parameters['genome_version']], parameters['sample_name'], parameters['sample_name'])
 f.write(depth_command)
@@ -150,20 +163,22 @@ f.write(stdout + '\n')
 
 priority = ','.join(chroms)
 vcf_merge_command = "sudo starcluster sshmaster stormseq_%s" % sample
-vcf_merge_command += " 'qsub -hold_jid %s -b y -cwd -N mergev python merge-vcf.py --reference=%s --priority=%s --output=/mydata/%s'" % (','.join(all_call_jobs), ref_paths[parameters['genome_version']], priority, parameters['sample_name'] + '.vcf')
+vcf_merge_command += " 'qsub -hold_jid %s -b y -cwd -N mergevs python merge-vcf.py --reference=%s --priority=%s --output=/mydata/%s'" % (','.join(all_call_jobs), ref_paths[parameters['genome_version']], priority, parameters['sample_name'] + '.vcf')
 f.write(vcf_merge_command)
 exit_status, stdout = commands.getstatusoutput(vcf_merge_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')
 
 vcf_stats_command = "sudo starcluster sshmaster stormseq_%s" % sample
-vcf_stats_command += " 'qsub -hold_jid %s -b y -cwd -N vcfstat python vcf-stats.py --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (job, ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
+vcf_stats_command += " 'qsub -hold_jid %s -b y -cwd -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
 f.write(vcf_stats_command)
 exit_status, stdout = commands.getstatusoutput(vcf_stats_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')
 
 time.sleep(60)
-p = subprocess.Popen(['python', '/var/www/finish.py', config_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+command = ['sudo', 'python', '/var/www/finish.py', config_file]
+f.write(' '.join(command) + '\n')
+p = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 f.write('%s\n' % p.pid)
 f.close()

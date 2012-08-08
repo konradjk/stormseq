@@ -41,7 +41,7 @@
     width: 1040px;
     padding: 10px;
     margin: 10px;
-    min-height: 400px;
+    min-height: 100px;
 }
 #page div#download {
     clear: both;
@@ -57,30 +57,26 @@
     width: 1040px;
     padding: 10px;
     margin: 10px;
-    min-height: 400px;
+    min-height: 200px;
 }
-
-@font-face {
-    font-family: 'SerifaLT45LightRegular';
-    src: url('../fonts/serifa_lt_45_light-webfont.eot?') format('eot'), 
-    url('../fonts/serifa_lt_45_light-webfont.woff') format('woff'),
-    url('../fonts/serifa_lt_45_light-webfont.ttf') format('truetype'),
-    url('../fonts/serifa_lt_45_light-webfont.svg#SerifaLT45LightRegular') format('svg');
-    font-weight: normal;
-    font-style: normal;
+.merged-stats {
+  float: left;
+  padding-right: 10px;
+}
+.final-stats {
+  float: left;
+  padding-left: 10px;
 }
 
 @font-face {
     font-family: 'HoneyScriptSemiBold';
-    src: url('../fonts/honeyscript-semibold-webfont.eot');
-    src: url('../fonts/honeyscript-semibold-webfont.eot?#iefix') format('embedded-opentype'),
-    url('../fonts/honeyscript-semibold-webfont.woff') format('woff'),
-    url('../fonts/honeyscript-semibold-webfont.ttf') format('truetype'),
-    url('../fonts/honeyscript-semibold-webfont.svg#HoneyScriptSemiBold') format('svg');
     font-weight: normal;
     font-style: normal;
 }
-
+.qtip-progress {
+  max-width: 1040px;
+  width: 1040px;
+}
 body {
     background:#f7f7f7;
     font-family: 'SerifaLT45LightRegular', Helvetica, Arial, sans-serif;

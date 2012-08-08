@@ -23,34 +23,50 @@ parser.add_option('--output', help='Output directory')
 s3_fq1 = options.fq1
 s3_fq2 = options.fq2
 fq1 = os.path.join('/mnt/', os.path.basename(s3_fq1))
-fq2 = os.path.join('/mnt/', os.path.basename(s3_fq2))
-stdout = commands.getoutput("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, fq1))
-if s3_fq1 != s3_fq2:
-  stdout = commands.getoutput("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq2, fq2))
+fq2 = os.path.join('/mnt2/', os.path.basename(s3_fq2))
 
 ref = options.reference
 platform = options.platform
 sample = options.sample
 quality = options.quality
 
+bwa_binary = '%s/bwa' % root
+samtools_binary = '%s/samtools' % root
+picard_convert_binary = '%s/picard/SamToFastq.jar' % root
+
 file_root = os.path.basename(fq1)
 sai1 = fq1 + '.sai'
-sai2 = fq2 + '.sai'
+sai2 = fq2 + '_2.sai' if fq2.endswith('.bam') else fq2 + '.sai'
 sam = fq1 + '.sam'
 bam = fq1 + '.raw.bam'
 sorted_bam = options.output + file_root + '.sorted.bam'
 sorted_bam_prefix = options.output + file_root + '.sorted'
 
+if s3_fq1 == s3_fq2:
+  command = "s3cmd -c /mydata/.s3cfg get %s -" % (s3_fq1)
+  fq1 += '.fq'
+  fq2 += '.fq'
+  convert = 'java -Xmx6g -jar %s I=/dev/stdin F=%s F2=%s' % (picard_convert_binary, fq1, fq2)
+  stdout = commands.getoutput(command + ' | ' + convert)
+else:
+  get1 = Process(target=commands.getstatusoutput, args=("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, fq1), ))
+  get1.start()
+  
+  get2 = Process(target=commands.getstatusoutput, args=("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq2, fq2), ))
+  get2.start()
+  
+  get1.join()
+  get2.join()
+
 rg_format = "\'@RG\\tID:%s\\tSM:%s\\tPL:%s\\tLB:%s\'" % (file_root, sample, platform, sample)
 
-bwa_binary = '%s/bwa' % root
-samtools_binary = '%s/samtools' % root
-
 # 1. ALN
-aln1 = Process(target=commands.getstatusoutput, args=('%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai1, ref, fq1), ))
+command = '%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai1, ref, fq1)
+aln1 = Process(target=commands.getstatusoutput, args=(command, ))
 aln1.start()
 
-aln2 = Process(target=commands.getstatusoutput, args=('%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai2, ref, fq2), ))
+command = '%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai2, ref, fq2)
+aln2 = Process(target=commands.getstatusoutput, args=(command, ))
 aln2.start()
 
 aln1.join()
@@ -58,18 +74,17 @@ aln2.join()
 
 # 2. SAMPE
 open(options.output + file_root + '.sam', 'w').close()
-sampe_command = '%s sampe -r %s -f %s' % (bwa_binary, rg_format, ' '.join([sam, ref, sai1, sai2, fq1, fq2]))
-exit_status, stdout = commands.getstatusoutput(sampe_command)
+sampe_command = '%s sampe -r %s %s' % (bwa_binary, rg_format, ' '.join([ref, sai1, sai2, fq1, fq2]))
+view_command = '%s view -b -h -S -t %s -o %s -' % (samtools_binary, ref, bam)
+exit_status, stdout = commands.getstatusoutput(sampe_command + ' | ' + view_command)
 print exit_status, stdout
 open(sai1, 'w').close()
 open(sai2, 'w').close()
 
 # 3. SAM to BAM
 open(options.output + file_root + '.raw.bam', 'w').close()
-view_command = '%s view -b -h -S -t %s -o %s %s' % (samtools_binary, ref, bam, sam)
-exit_status, stdout = commands.getstatusoutput(view_command)
-print exit_status, stdout
-open(sam, 'w').close()
+#exit_status, stdout = commands.getstatusoutput(view_command)
+#print exit_status, stdout
 
 # 4. Sort BAM
 exit_status, stdout = commands.getstatusoutput('%s sort %s %s' % (samtools_binary, bam, sorted_bam_prefix))

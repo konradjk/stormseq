@@ -22,7 +22,7 @@ for sample_name in samples:
   try:
     stdout = subprocess.check_output(check_command)
   except subprocess.CalledProcessError:
-    generic_response('no-progress')
+    continue
   
   chroms = ['chr%s' % x for x in range(1,23)]
   chroms.extend(['chrX', 'chrY', 'chrM'])
@@ -60,14 +60,17 @@ for sample_name in samples:
     outfiles = [file for file in all_files if file.find('stormseq') > -1 and file.find(key) > -1]
     outputs[key + '_file'] = outfiles[0] if key and len(outfiles) > 0 else ''
   
-  outputs['merged_stats'] = int(sample_name + '.merged.stats.tar.gz' in files)
-  outputs['final_stats'] = int(sample_name + '.final.stats.tar.gz' in files)
-  outputs['depth'] = int(sample_name + '.depth' in files)
-  outputs['vcf_eval'] = int(sample_name + '.vcf.eval' in files)
+  outputs['merged_stats'] = int(sample_name + '.merged.stats.tar.gz.done' in files)
+  outputs['final_stats'] = int(sample_name + '.final.stats.tar.gz.done' in files)
+  outputs['depth'] = int(sample_name + '.depth.done' in files)
+  outputs['vcf_eval'] = int(sample_name + '.vcf.eval.done' in files)
   
   out = {'initials' : initials, 'cleans' : cleans, 'outputs' : outputs}
   f.write(json.dumps(out))
   response[sample_name] = out
+
+if len(response) == 0:
+  generic_response('not-running')
 
 f.close()
   

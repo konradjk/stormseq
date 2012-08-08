@@ -15,6 +15,11 @@
 <script type="text/javascript" src="js/jquery.autosave.pack.js"></script>
 <script type="text/javascript" src="js/jquery.cookie.js"></script>
 
+<script type="text/javascript" src="https://www.google.com/jsapi"></script>
+<script type="text/javascript">
+google.load("visualization", "1", {packages:["corechart"]});
+</script>
+
 <link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />
 <link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />
 <link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />
@@ -39,8 +44,7 @@
           <h3>Upload your data</h3>
           <div id='startup-instructions'>
               <p>
-                  Upload your files to <a id='own-url-data' href=''>your Amazon volume</a>,
-                  using public key authentication (point the SFTP software to the Access Key PEM file previously downloaded).
+                  Create an S3 bucket as described on the <a href="http://www.stormseq.org/use.html" target='_blank'>STORMSeq page</a> and upload your files.
               </p>
               <p>
                   <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
@@ -65,8 +69,8 @@
               </p>
               <p>
                   <span class='qtip-link' qtip-content='This can be any S3 bucket owned by you.
-                  When the pipeline is finished, STORMSeq will store the results here.'>
-                  Enter an Amazon S3 bucket for your results:
+                  STORMSeq will look for your raw data in this bucket and then store the results here.'>
+                  Enter the Amazon S3 bucket where your data are stored:
                   </span>
                   <textarea id='results-bucket' rows='1' cols='30'></textarea>
               </p>
@@ -105,7 +109,6 @@
               <select id='genome-version' align='right' style='display: inline; float: right'>
                   <option value='hg19'>hg19</option>
                   <option value='ceu-ref'>CEU reference (hg19; Coming soon!)</option>
-                  <option value='hg18'>hg18 (Coming soon!)</option>
               </select>
           </p>
           
@@ -114,14 +117,14 @@
               dbSNP version:
               <select id='dbsnp-version'>
                   <option value='dbsnp135'>dbSNP 135</option>
-                  <option value='dbsnp132'>dbSNP 132 (Coming soon!)</option>
+                  <option value='dbsnp132'>dbSNP 132</option>
               </select>
           </p>
           <p>
               Alignment:
               <select id='alignment-pipeline'>
                   <option value='bwa'>BWA</option>
-                  <option value='snap'>SNAP (coming soon!)</option>
+                  <option value='snap'>SNAP</option>
                   <option value='novo'>Novoalign (coming soon!)</option>
               </select>
           </p>
@@ -134,6 +137,12 @@
                   <option value='gatk'>GATK</option>
                   <option value='samtools'>Samtools (coming soon!)</option>
               </select>
+          </p>
+          <p>
+              <input type="checkbox" id="call_indels" name="call_indels" checked />
+              <label for="call_indels">Indel Calling</label>
+              <input type="checkbox" id="call_svs" name="call_svs" checked />
+              <label for="call_svs">SV Calling</label>
           </p>
           <div id="advanced_settings">
               <h3><a href="#">Advanced settings</a></h3>
@@ -220,7 +229,7 @@
           Standard min confidence threshold for emitting: <textarea id='gatk-opt-std-emit' rows='1' cols='8'>30.0</textarea>
           <br/>
           <input type="checkbox" id="call-all-dbsnp" name="call-all-dbsnp" checked />
-          <label for="call-all-dbsnp">Call all sites in dbSNP (recommended for input to Interpretome)</label>
+          <label for="call-all-dbsnp">Call all sites in dbSNP (recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>)</label>
       </div>
       <div id='samtools-advanced' class='dialog hidden'>
           <h3>Advanced options for Samtools:</h3>
@@ -228,6 +237,15 @@
       </div>
       <div id='amazon-advanced' class='dialog hidden'>
           <h3>Advanced options for Amazon EC2:</h3>
+          <div id="force-machine-type">
+              <input type="radio" id="default" value='default' name="force-machine-type" checked="checked" /><label for="default" class='qtip-link'
+              qtip-content='Default'>Default</label>
+              <input type="radio" id="m2.4xlarge" value='m2.4xlarge' name="force-machine-type" /><label for="m2.4xlarge" class='qtip-link'
+              qtip-content='High-memory'>High-memory</label>
+              <!--<input type="radio" id="cc2.8xlarge" value='cc2.8xlarge' name="force-machine-type" /><label for="cc2.8xlarge" class='qtip-link'-->
+              <!--qtip-content=''>High-memory, High-CPU (fastest, most-expensive)</label>-->
+          </div>
+          <br/>
           <div id="amazon-request-types">
               <input type="radio" id="normal" value='normal' name="amazon-request-types" checked="checked" /><label for="normal" class='qtip-link'
               qtip-content='On-demand is a standard Amazon instance.
@@ -246,7 +264,7 @@
           <h4>SNAP only</h4>
           High-memory instance bid: $<textarea id='hi-mem-bid' rows='1' cols='5'>0.50</textarea>
           <br/>30 day history:
-            <div id='hi-mem-current-price'></div>
+          <div id='hi-mem-current-price'></div>
           If price history is not displayed, please enter your Access Key ID and Secret Access Key on the previous page
           and click <span class='link' onclick='refresh_spot_prices();'>refresh</span>.
       </div>
@@ -267,8 +285,11 @@
       
       <div id="progress">
           <h3>Pipeline progress</h3>
-          <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.<br/></small>
+          <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.
+          For multiple samples, mouseover each sample name for details.<br/></small>
           <div id='all-progress-charts'>
+          </div>
+          <div id='all-progress-charts-hidden'>
           </div>
       </div>
       
@@ -281,6 +302,7 @@
           <h3>Visualize your results</h3>
           <small>Page will automatically refresh when results are available. Click <span class='link' onclick='refresh_vis();'>here</span> to refresh manually.<br/></small>
           <div id='visualize-results'></div>
+          <div id='chart_div' style="width: 900px; height: 500px;"></div>
       </div>
   
   </div>  

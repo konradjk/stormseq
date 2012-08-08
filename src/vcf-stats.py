@@ -12,6 +12,7 @@ parser.add_option('--input', help='VCF file')
 parser.add_option('--output')
 parser.add_option('--reference')
 parser.add_option('--dbsnp', default=None)
+parser.add_option('--intervals', default=None)
 
 (options, args) = parser.parse_args()
 
@@ -19,12 +20,15 @@ gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
 
 sample = os.path.splitext(os.path.basename(options.input))[0]
 other_options = '' if options.dbsnp is None else '--dbsnp %s' % options.dbsnp
+other_options += '' if options.intervals is None else ' --intervals %s' % options.intervals
 
-exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s -R %s -T VariantEval -o %s --eval:%s %s %s' % (gatk_binary, options.reference, options.output, sample, options.input, other_options))
+command = 'java -Xmx4g -jar %s -R %s -T VariantEval -o %s --eval:%s %s %s' % (gatk_binary, options.reference, options.output, sample, options.input, other_options)
+print command
+exit_status, stdout = commands.getstatusoutput(command)
 print exit_status, stdout
 
-exit_status, stdout = commands.getstatusoutput('tar zcv %s* > %s.tar.gz' % (options.output, options.output))
-print exit_status, stdout
+#exit_status, stdout = commands.getstatusoutput('tar zcv %s* > %s.tar.gz' % (options.output, options.output))
+#print exit_status, stdout
 
 exit_status, stdout = commands.getstatusoutput('touch %s.done' % (options.output))
 print exit_status, stdout

@@ -3,6 +3,7 @@ import os
 import subprocess
 from optparse import OptionParser
 import commands
+import re
 
 root = '/usr/local/bin'
 
@@ -25,20 +26,19 @@ platform = options.platform
 covariates_raw = options.covariates
 covariates = ' '.join(['-cov ' + x for x in covariates_raw.split(',')])
 
-chrom_bam = in_bam.replace('.merged.bam', '_%s.merged.bam' % chromosome)
-nodup_bam = chrom_bam.replace('.merged.bam', '.nodup.bam')
-dup_met = chrom_bam.replace('.merged.bam', '.dupmetrics')
-realign_intervals = chrom_bam.replace('.merged.bam', '.realigner.intervals')
-realigned_bam = chrom_bam.replace('.merged.bam', '.align.bam')
-rec_file = chrom_bam.replace('.merged.bam', '.recal_data.csv')
-recal_bam = chrom_bam.replace('.merged.bam', '.recal.bam')
-vcf = chrom_bam.replace('.merged.bam', '.vcf')
+chrom_bam = re.sub('.merged.bam$', '_%s.merged.bam' % chromosome, in_bam)
+nodup_bam = re.sub('.merged.bam$', '.nodup.bam', chrom_bam)
+dup_met = re.sub('.merged.bam$', '.dupmetrics', chrom_bam)
+realign_intervals = re.sub('.merged.bam$', '.realigner.intervals', chrom_bam)
+realigned_bam = re.sub('.merged.bam$', '.align.bam', chrom_bam)
+rec_file = re.sub('.merged.bam$', '.recal_data.csv', chrom_bam)
+recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
+vcf = re.sub('.merged.bam$', '.vcf', chrom_bam)
 
 bwa_binary = '%s/bwa' % root
 samtools_binary = '%s/samtools' % root
 picard_binary = '%s/picard/MarkDuplicates.jar' % root
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
-
+gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
 
 # Split by chromosome
 command = '%s view -b -h -o %s %s %s' % (samtools_binary, chrom_bam, in_bam, chromosome)

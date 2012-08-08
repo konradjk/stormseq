@@ -4,8 +4,12 @@ $(document).ready(function(){
     $('#start_button').click(function() {
         $(this).button('disable');
         $('#run-status').empty();
-        $('#run-status').append('Doing final checks and starting cluster... <img src="images/busy.gif" /><br/>');
-        $('#run-status').append('(This may take several minutes.)');
+        var add = ''
+        if ($('#sample_name').val().split('\n').length > 1) {
+          add = 's'
+        }
+        $('#run-status').append('Doing final checks and starting cluster' + add + '... <img src="images/busy.gif" /><br/>');
+        $('#run-status').append('(This may take several minutes, typically up to 5-10 minutes per sample.)');
         $.post("start_pipeline.cgi", { all_objects: JSON.stringify(get_all_data()) },
             function(response){
                 mapping_handle_response(response);
@@ -13,6 +17,7 @@ $(document).ready(function(){
         );
     });
     $("#amazon-request-types").buttonset();
+    $("#force-machine-type").buttonset();
     $("#advanced_settings").accordion({
             collapsible: true,
             active: false,
@@ -35,10 +40,6 @@ $(document).ready(function(){
             $('#' + options.value + '-advanced-link').show();
         }
     });
-    $('#own-url-data').attr("href", 'sftp://root@' + document.domain + ':/mnt/stormseq_data');
-    $('#own-url-home').attr("href", 'sftp://root@' + document.domain + ':/root/');
-    refresh_spot_prices(); 
-    
     $('.qtip-link').qtip({
         content: {
             attr: 'qtip-content'
@@ -60,6 +61,7 @@ $(document).ready(function(){
     $('textarea').autosave({cookieExpiryLength: 30});
     $('.autosave_restore').click();
     refresh_vis();
+    click_refresh_progress();
 });
 
 function refresh_vis() {
@@ -71,37 +73,106 @@ function refresh_vis() {
     });
 }
 
+function indel_length_chart() {
+    var data = google.visualization.arrayToDataTable([
+      ['Year', 'Sales', 'Expenses'],
+      ['2004',  1000,      400],
+      ['2005',  1170,      460],
+      ['2006',  660,       1120],
+      ['2007',  1030,      540]
+    ]);
+
+    var options = {
+      hAxis: {title: 'Indel Length'},
+      bar:   { groupWidth: "100%" },
+      colors:['steelblue','#83b01c']
+    };
+
+    var chart = new google.visualization.ColumnChart(document.getElementById('chart_div'));
+    chart.draw(data, options);
+}
+
 function click_refresh_progress() {
     $('#all-progress-charts').empty();
     $('#all-progress-charts').append('Checking progress... <img src="images/busy.gif" />');
-
+    $("#all-progress-charts-hidden").empty();
     $.post('check_progress.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, setup_charts);
 }
+function show_progress_chart(sample) {
+  $("#progress-charts-" + sample).dialog({ modal: true, width: "80%", resizable: false, buttons: {
+    "Close": function() {$(this).dialog("close");}
+    }});
+}
+function get_sample_progress_string(response_data) {
+  if (response_data['outputs']['merged'] == 0) {
+    return "Mapping...";
+  } else {
+    if (response_data['outputs']['final'] == 0) {
+      return "Mapped. Cleaning...";
+    } else {
+      if (response_data['outputs']['vcf'] == 0) {
+        return "Mapped and cleaned. Calling variants..."
+      } else {
+        return "Done mapping, cleaning, and calling!"
+      }
+    }
+  }
+}
+
+function get_dimensions(files, steps) {
+  text_width = 7*Math.max.apply(Math, $.map(files, function(a) { return a.length }));
+  h = 300;
+  outer_height = h + 40;
+  w = 450 - text_width;
+  outer_width = w + text_width + 30;
+  x = d3.scale.linear().domain([0, steps]).range([0, w]);
+  y = d3.scale.ordinal().domain(d3.range(files.length)).rangeBands([0, h], .2);
+}
+
 function setup_charts(all_responses) {
-  if (all_responses == 'no-progress') {
+  if (all_responses == 'not-running') {
     return false;
+  } else {
+    $('#start_button').button("option","disabled",true);
   }
   $('#all-progress-charts').empty();
   all_response_data = JSON.parse(all_responses);
   $.each(all_response_data, function(sample, response_data) {
-    $('#all-progress-charts').append("<h4>" + sample + "</h4>");
-    $('#all-progress-charts').append("<span id='progress-chart-" + sample + "'></span>");
-    $('#all-progress-charts').append("<span id='progress-chart-2-" + sample + "'></span><br/>");
+    var sample_progress = get_sample_progress_string(response_data);
+    if (Object.keys(all_response_data).length > 1) {
+      $('#all-progress-charts').append("<span class='qtip-link' id='progress-header-" + sample + "'" +"><b>" + sample + "</b>: " + sample_progress + "</span><br/>");
+      $("#all-progress-charts-hidden").append("<div class='hidden' id='progress-charts-" + sample + "'" + "'></div>");
+      $("#progress-header-" + sample).qtip({
+        content: $("#progress-charts-" + sample),
+        position: {
+          my: 'top left',
+          target: 'mouse',
+          viewport: $(window), // Keep it on-screen at all times if possible
+          adjust: {
+            x: 10,  y: 10
+          }
+        },
+        hide: {
+          fixed: true // Helps to prevent the tooltip from hiding ocassionally when tracking!
+        },
+        style: 'qtip-progress'
+      });
+    } else {
+      $('#all-progress-charts').append("<span id='progress-header-" + sample + "'" +"><b>" + sample + "</b>: " + sample_progress + "</span><br/>");
+      $("#all-progress-charts-hidden").append("<div id='progress-charts-" + sample + "'></div>");
+    }
+    $("#progress-charts-" + sample).append("<span id='progress-chart-" + sample + "'></span><span id='progress-chart-2-" + sample + "'></span><br/>");
+  });
+  $.each(all_response_data, function(sample, response_data) {
     // Mapping chart
     var files = Object.keys(response_data['initials']);
     files.sort();
-    var text_width = 7*Math.max.apply(Math, $.map(files, function(a) { return a.length }));
-    h1 = 300;
-    outer_height1 = h1 + 40;
-    w1 = 450 - text_width;
-    outer_width1 = w1 + text_width + 30;
-    x1 = d3.scale.linear().domain([0, 5]).range([0, w1]);
-    y1 = d3.scale.ordinal().domain(d3.range(files.length)).rangeBands([0, h1], .2);
+    get_dimensions(files, 5);
     
     var chart = d3.select("#progress-chart-" + sample).append("svg")
         .attr("class", "chart")
-        .attr("width", outer_width1)
-        .attr("height", outer_height1)
+        .attr("width", outer_width)
+        .attr("height", outer_height)
         .append("g")
         .attr("transform", "translate(" + text_width + ",15)");
         
@@ -125,31 +196,31 @@ function setup_charts(all_responses) {
     chart.selectAll("rect")
         .data($.map(new Array(files.length), function(x) { return 0; }))
       .enter().append("rect")
-        .attr("y", function(d, i) { return (i) * h1/files.length; })
-        .attr("width", x1)
-        .attr("height", h1/files.length)
+        .attr("y", function(d, i) { return (i) * h/files.length; })
+        .attr("width", x)
+        .attr("height", h/files.length)
         .style("fill", "url(#gradient)");
     
     chart.append("rect").attr('class', 'bamrect ' + sample)
-        .attr("x", w1-x1(1))
+        .attr("x", w-x(1))
         .attr("y", 0 )
         .attr("width", 0)
-        .attr("height", h1 )
+        .attr("height", h )
         .style("fill", "url(#gradient)");
     chart.selectAll("line")
-        .data(x1.ticks(5))
+        .data(x.ticks(5))
         .enter().append("line")
-        .attr("x1", x1)
-        .attr("x2", x1)
+        .attr("x1", x)
+        .attr("x2", x)
         .attr("y1", 0)
-        .attr("y2", h1)
+        .attr("y2", h)
         .style("stroke", "#ccc");
     
     chart.selectAll(".rule")
-        .data(x1.ticks(5))
+        .data(x.ticks(5))
        .enter().append("text")
          .attr("class", "rule")
-         .attr("x", x1)
+         .attr("x", x)
          .attr("y", 0)
          .attr("dy", -3)
          .attr("text-anchor", "middle")
@@ -161,10 +232,10 @@ function setup_charts(all_responses) {
                .data(files)
                .enter().append("svg:g")
                .attr("class", "bar")
-               .attr("transform", function(d, i) { return "translate(0," + y1(i) + ")"; });
+               .attr("transform", function(d, i) { return "translate(0," + y(i) + ")"; });
     bars.append("svg:text")
        .attr("x", 0)
-       .attr("y", y1.rangeBand() / 2)
+       .attr("y", y.rangeBand() / 2)
        .attr("dx", -6)
        .attr("dy", ".35em")
        .attr("text-anchor", "end")
@@ -172,42 +243,37 @@ function setup_charts(all_responses) {
     
     // Cleaning chart
     chroms = get_chroms();
-    h2 = 300;
-    outer_height2 = h2 + 40;
-    w2 = 420;
-    outer_width2 = w2 + 80;
-    x2 = d3.scale.linear().domain([0, 6]).range([0, w2]);
-    y2 = d3.scale.ordinal().domain(d3.range(chroms.length)).rangeBands([0, h2], .2);
+    get_dimensions(chroms, 6);
     
     var chart = d3.select("#progress-chart-2-" + sample).append("svg")
         .attr("class", "chart")
-        .attr("width", outer_width2)
-        .attr("height", outer_height2)
+        .attr("width", outer_width)
+        .attr("height", outer_height)
         .append("g")
         .attr("transform", "translate(40,15)");
     
     chart.selectAll("rect")
         .data($.map(new Array(chroms.length), function(x) { return 0; }))
       .enter().append("rect")
-        .attr("y", function(d, i) { return (i) * h2/chroms.length; })
-        .attr("width", x2)
-        .attr("height", h2/chroms.length)
+        .attr("y", function(d, i) { return (i) * h/chroms.length; })
+        .attr("width", x)
+        .attr("height", h/chroms.length)
         .style("fill", "url(#gradient)");
     
     chart.selectAll("line")
-        .data(x2.ticks(5))
+        .data(x.ticks(5))
         .enter().append("line")
-        .attr("x1", x2)
-        .attr("x2", x2)
+        .attr("x1", x)
+        .attr("x2", x)
         .attr("y1", 0)
-        .attr("y2", h2)
+        .attr("y2", h)
         .style("stroke", "#ccc");
     
     chart.selectAll(".rule")
-        .data(x2.ticks(5))
+        .data(x.ticks(5))
        .enter().append("text")
          .attr("class", "rule")
-         .attr("x", x2)
+         .attr("x", x)
          .attr("y", 0)
          .attr("dy", -3)
          .attr("text-anchor", "middle")
@@ -220,27 +286,27 @@ function setup_charts(all_responses) {
                .data(chroms)
                .enter().append("svg:g")
                .attr("class", "bar")
-               .attr("transform", function(d, i) { return "translate(0," + y2(i) + ")"; });
+               .attr("transform", function(d, i) { return "translate(0," + y(i) + ")"; });
     bars.append("svg:text")
        .attr("x", 0)
-       .attr("y", y2.rangeBand() / 2)
+       .attr("y", y.rangeBand() / 2)
        .attr("dx", -6)
        .attr("dy", ".35em")
        .attr("text-anchor", "end")
        .text(function(d, i) { return chroms[i]; });
     chart.append("rect").attr('class', 'finalbamrect ' + sample)
-            .attr("x", w2-x2(1))
+            .attr("x", w-x(1))
             .attr("y", 0 )
             .attr("width", 0)
-            .attr("height", h2/2 )
+            .attr("height", h/2 )
             .style("fill", "url(#gradient)");
     chart.append("rect").attr('class', 'vcfrect ' + sample)
-        .attr("x", w2-x2(1))
-        .attr("y", h2/2 )
+        .attr("x", w-x(1))
+        .attr("y", h/2 )
         .attr("width", 0)
-        .attr("height", h2/2 )
+        .attr("height", h/2 )
         .style("fill", "url(#gradient)");
-    if (typeof progress_id === undefined) {
+    if (typeof progress_id === 'undefined') {
       progress_id = setInterval(update_charts, 300000);
     }
   });
@@ -250,7 +316,7 @@ function update_charts() {
     $.post('check_progress.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, update_map_charts);
 }
 function update_map_charts(all_responses){
-  if (all_responses == 'no-progress') {
+  if (all_responses == 'not-running') {
     return false;
   }
   all_response_data = JSON.parse(all_responses);
@@ -261,17 +327,22 @@ function update_map_charts(all_responses){
 
     files = Object.keys(response_data['initials']);
     files.sort();
-    map_data = [];
+    get_dimensions(files, 5);
+    var map_data = [];
     $.each(files, function(i, v) {
         map_data.push(response_data['initials'][v]);
     });
+    //console.log('Sample: ', sample, 'Amount of data: ', files.length);
+    //console.log('Data: ', response_data['initials']);
     var chart = d3.select("#progress-chart-" + sample);
+    var file_length = files.length;
     chart.selectAll("rect")
         .data(map_data)
       .transition().duration(speed)
-        .attr("y", function(d, i) { return (i) * h1/map_data.length; })
-        .attr("width", x1)
-        .attr("height", h1/map_data.length)
+    //    .attr("y", function(d, i) { console.log('Sample: ', sample, 'File: ', i, 'Map length: ', file_length); console.log((i) * h/file_length); return (i) * h/file_length; })
+        .attr("y", function(d, i) { return (i) * h/file_length; })
+        .attr("width", x)
+        .attr("height", h/file_length)
         .style("fill", "url(#gradient)");
         
     setTimeout(function() {
@@ -280,37 +351,40 @@ function update_map_charts(all_responses){
   });
 }
 function make_merged_bam_chart(sample, response_data) {
+    files = Object.keys(response_data['initials']);
+    files.sort();
+    get_dimensions(files, 5);
     $('#download-results').empty();
     var chart = d3.select("#progress-chart-" + sample);
     if (response_data['outputs']['merged']) {
         refresh_vis();
         chart.select('g').append("text")
-                .attr("x", w1-x1(0.5)-18)
-                .attr("y", h1/2-10 )
+                .attr("x", w-x(0.5)-18)
+                .attr("y", h/2-10 )
                 .text('Int BAM')
                 .attr("fill", "white")
                 .attr('class', 'link intbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         if (response_data['outputs']['merged_stats']) {
             chart.select('g').append("text")
-                .attr("x", w1-x1(0.5)-25)
-                .attr("y", h1/2+10 )
+                .attr("x", w-x(0.5)-25)
+                .attr("y", h/2+10 )
                 .text('Stats done')
                 .attr("fill", "white")
                 .attr('class', 'link intbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
-                .attr("x", w1-x1(0.5)-35)
-                .attr("y", h1/2+10 )
+                .attr("x", w-x(0.5)-35)
+                .attr("y", h/2+10 )
                 .text('Running stats...')
                 .attr("fill", "white")
                 .attr('class', 'intbamtext ' + sample);
         }
         chart.select('.bamrect.' + sample)
           .transition().duration(speed)
-            .attr("width", x1(1))
-            .attr("height", h1 )
+            .attr("width", x(1))
+            .attr("height", h )
             .style("fill", "url(#gradient)");
         $('#download-results').append("<a href='https://console.aws.amazon.com/s3/home' target='_blank'>Download files in your S3 Bucket</a><br/><br/>");
     }
@@ -324,13 +398,14 @@ function make_clean_chart(sample, response_data) {
     $.each(chroms, function(i, v) {
         data.push(response_data['cleans'][v]);
     });
+    get_dimensions(chroms, 6);
     var chart = d3.select("#progress-chart-2-" + sample);
     chart.selectAll("rect")
         .data(data)
       .transition().duration(speed)
-        .attr("y", function(d, i) { return (i) * h2/data.length; })
-        .attr("width", x2)
-        .attr("height", h2/data.length)
+        .attr("y", function(d, i) { return (i) * h/data.length; })
+        .attr("width", x)
+        .attr("height", h/data.length)
         .style("fill", "url(#gradient)");
     
     setTimeout(function() {
@@ -339,11 +414,13 @@ function make_clean_chart(sample, response_data) {
 }
 function make_final_chart(sample, response_data) {
     var chart = d3.select("#progress-chart-2-" + sample);
+    chroms = get_chroms();
+    get_dimensions(chroms, 6);
     if (response_data['outputs']['final']) {
         
         chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-10)
-                .attr("y", h2/4 - 20)
+                .attr("x", w-x(0.5)-10)
+                .attr("y", h/4 - 20)
                 .text('BAM')
                 .attr("fill", "white")
                 .attr('class', 'link finalbamtext ' + sample)
@@ -351,69 +428,69 @@ function make_final_chart(sample, response_data) {
         
         if (response_data['outputs']['final_stats']) {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-23)
-                .attr("y", h2/4  )
+                .attr("x", w-x(0.5)-23)
+                .attr("y", h/4  )
                 .text('Stats done')
                 .attr("fill", "white")
                 .attr('class', 'link finalbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
-                .attr("y", h2/4  )
+                .attr("x", w-x(0.5)-35)
+                .attr("y", h/4  )
                 .text('Running stats...')
                 .attr('class', 'finalbamtext ' + sample)
                 .attr("fill", "white");
         }
         if (response_data['outputs']['depth']) {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
-                .attr("y", h2/4 + 20 )
+                .attr("x", w-x(0.5)-35)
+                .attr("y", h/4 + 20 )
                 .text('Depth done')
                 .attr("fill", "white")
                 .attr('class', 'link finalbamtext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
-                .attr("y", h2/4 + 20 )
+                .attr("x", w-x(0.5)-35)
+                .attr("y", h/4 + 20 )
                 .text('Running depth...')
                 .attr('class', 'finalbamtext ' + sample)
                 .attr("fill", "white");
         }
         chart.select('.finalbamrect.' + sample)
           .transition().duration(speed)
-            .attr("width", x2(1))
-            .attr("height", h2/2 )
+            .attr("width", x(1))
+            .attr("height", h/2 )
             .style("fill", "url(#gradient)");
     }
     if (response_data['outputs']['vcf']) {
         chart.select('g').append("text")
-            .attr("x", w2-x2(0.5)-10)
-            .attr("y", 3*h2/4 - 10)
+            .attr("x", w-x(0.5)-10)
+            .attr("y", 3*h/4 - 10)
             .text('VCF')
             .attr("fill", "white")
                 .attr('class', 'link vcftext ' + sample);
         if (response_data['outputs']['vcf_eval']) {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
-                .attr("y", 3*h2/4 + 10)
+                .attr("x", w-x(0.5)-25)
+                .attr("y", 3*h/4 + 10)
                 .text('Eval done')
                 .attr("fill", "white")
                 .attr('class', 'link vcftext ' + sample)
                 .attr('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
         } else {
             chart.select('g').append("text")
-                .attr("x", w2-x2(0.5)-35)
-                .attr("y", 3*h2/4 + 10)
+                .attr("x", w-x(0.5)-35)
+                .attr("y", 3*h/4 + 10)
                 .text('Running eval...')
                 .attr("fill", "white")
                 .attr('class', 'vcftext ' + sample);
         }
         chart.select('.vcfrect.' + sample)
           .transition().duration(speed)
-            .attr("width", x2(1))
-            .attr("height", h2/2 )
+            .attr("width", x(1))
+            .attr("height", h/2 )
             .style("fill", "url(#gradient)");
         $.each($('g > text').filter(function(x) { return $(this).text() == 'VCF' }), function(i, b) {
             b.setAttribute('onclick', 'window.open("https://console.aws.amazon.com/s3/home")');
@@ -464,7 +541,11 @@ function get_all_data() {
         sample_names: $('#sample_name').val().split('\n'),
         s3_bucket: $('#results-bucket').val(),
         data_type: $('#data-type').val(),
-        request_type: $('#amazon-request-types input:checked').val()
+        request_type: $('#amazon-request-types input:checked').val(),
+        force_large_machine: $('#force-machine-type input:checked').val(),
+        indel_calling: $('#call_indels')[0].checked,
+        sv_calling: $('#call_svs')[0].checked,
+        joint_calling: false
     };
     $.extend(output, get_values_from_textarea($('#alignment-pipeline').val()));
     $.extend(output, get_values_from_checkboxes('gatk-clean'));
@@ -472,31 +553,6 @@ function get_all_data() {
     $.extend(output, get_values_from_textarea($('#calling-pipeline').val()));
     $.extend(output, get_values_from_textarea('amazon'));
     return(output);
-}
-
-function qc_handle_response(response) {
-    $('#qc-status').empty();
-    if (response.search('qc-fail') > -1) {
-        $('#qc-status').append('QC has failed. Check your input files.<br/><br/>Error:<br/>' + response);
-        $('#check_files_button').button("option","disabled",false);
-    } else {
-        $('#qc-status').append('Passed QC!');
-        if (response == 'cert-fail') {
-            $('#qc-status').append('<br/>Amazon PEM files are gone. Check cert*pem and pk*pem in /root/ directory.');
-            $('#check_files_button').button("option","disabled",false);
-        } else {
-            if (response == 'auth-fail') {
-                $('#qc-status').append('<br/>Could not authenticate Amazon account from Account Number, Access Key ID, or Secret Access Key. Check these inputs.');
-                $('#check_files_button').button("option","disabled",false);
-            } else if (response == 'success') {
-                $('#qc-status').append('<br/>Your pipeline is ready! Click GO to begin!');
-                $('#start_button').button("option","disabled",false);
-            } else {
-                $('#qc-status').append('<br/>Something new went wrong. Please <a href="mailto:help@stormseq.org">email</a> us with these details:<br/><br/>' + response);
-                $('#check_files_button').button("option","disabled",false);
-            }
-        }
-    }
 }
 
 function mapping_handle_response(response) {

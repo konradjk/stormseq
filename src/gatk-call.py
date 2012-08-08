@@ -3,6 +3,7 @@ import os
 import subprocess
 from optparse import OptionParser
 import commands
+import re
 
 root = '/usr/local/bin'
 
@@ -13,8 +14,9 @@ parser.add_option('--reference', help='Genome FASTA file')
 parser.add_option('--chromosome', help='Chromosome')
 parser.add_option('--stand_call_conf', help='Standard min confidence threshold for calling', default='30.0')
 parser.add_option('--stand_emit_conf', help='Standard min confidence threshold for emitting', default='30.0')
-parser.add_option('--call_all_dbsnp', action="store_true", help='Call ALL sites in dbSNP as well as novel variants', default=True)
+parser.add_option('--call_all_dbsnp', action="store_true", help='Call ALL sites in dbSNP as well as novel variants', default=False)
 parser.add_option('--intervals', help='Intervals file (for exome seq, e.g.)', default=None)
+parser.add_option('--indels', action='store_true', help='Call indels instead of SNPs', default=False)
 
 (options, args) = parser.parse_args()
 
@@ -25,16 +27,17 @@ chromosome = options.chromosome
 
 gatk_options = '-stand_call_conf %s -stand_emit_conf %s' % (options.stand_call_conf, options.stand_emit_conf)
 
-chrom_bam = in_bam.replace('.merged.bam', '_%s.merged.bam' % chromosome)
-recal_bam = chrom_bam.replace('.merged.bam', '.recal.bam')
-vcf = chrom_bam.replace('.merged.bam', '.vcf')
+chrom_bam = re.sub('.merged.bam$', '_%s.merged.bam' % chromosome, in_bam)
+recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
+vcf = re.sub('.merged.bam$', '.vcf', chrom_bam)
 dbsnp_chr = dbsnp.replace('.vcf', '_%s.vcf' % chromosome)
 
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
 
 def run_gatk_commands(command):
   command += '' if options.intervals is None else ' -L %s' % options.intervals
   command += '' if options.intervals is None or command.find('--interval_set_rule INTERSECTION') > -1 else ' --interval_set_rule INTERSECTION'
+  command += ' --genotype_likelihoods_model BOTH' if options.indels else ''
   print command
   exit_status, stdout = commands.getstatusoutput(command)
   print exit_status, stdout

@@ -11,10 +11,14 @@ parser = OptionParser()
 parser.add_option('--output', help='Output file')
 parser.add_option('--priority', help='Priority string for GATK')
 parser.add_option('--reference', help='Reference')
+parser.add_option('--indels', action='store_true', help='Merge indels instead of SNPs', default=False)
 
 (options,args) = parser.parse_args()
 
-input = ' '.join(["--variant %s_%s.vcf" % (options.output.replace('.vcf', ''), chr) for chr in options.priority.split(',')])
+if options.indels:
+  input = ' '.join(["--variant %s_%s.indel.vcf" % (options.output.replace('.indel.vcf', ''), chr) for chr in options.priority.split(',')])
+else:
+  input = ' '.join(["--variant %s_%s.vcf" % (options.output.replace('.vcf', ''), chr) for chr in options.priority.split(',')])
 
 gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
 
@@ -22,7 +26,5 @@ gatk_command = 'java -Xmx4g -jar %s -T CombineVariants -R %s %s -o %s --genotype
 exit_status, stdout = commands.getstatusoutput(gatk_command)
 print exit_status, stdout
 
-# TODO: Stats
-
-exit_status, stdout = commands.getstatusoutput('touch %s.done' % (options.output))
-print exit_status, stdout
+#exit_status, stdout = commands.getstatusoutput('touch %s.done' % (options.output))
+#print exit_status, stdout
