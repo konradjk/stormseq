@@ -41,27 +41,29 @@ def run_gatk_commands(command):
   print command
   exit_status, stdout = commands.getstatusoutput(command)
   print exit_status, stdout
-
-if options.call_all_dbsnp:
-  raw_vcf = vcf.replace('.vcf', '.raw.vcf')
-  command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s -I %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, raw_vcf, dbsnp, gatk_options)
-  run_gatk_commands(command)
-
-  orig_dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.all.vcf')
-  command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper --dbsnp %s --output_mode EMIT_ALL_SITES --interval_set_rule INTERSECTION -L %s -L %s -R %s -I %s -o %s %s' % (gatk_binary, dbsnp, dbsnp_chr, chromosome, ref, recal_bam, orig_dbsnp_vcf, gatk_options)
-  command += ' --genotyping_mode GENOTYPE_GIVEN_ALLELES --alleles %s' % dbsnp_chr
-  run_gatk_commands(command)
+try:
+  if options.call_all_dbsnp:
+    raw_vcf = vcf.replace('.vcf', '.raw.vcf')
+    command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s -I %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, raw_vcf, dbsnp, gatk_options)
+    run_gatk_commands(command)
   
-  dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.vcf')
-  command = 'grep -vP "\.\/\." %s > %s' % (orig_dbsnp_vcf, dbsnp_vcf)
-  exit_status, stdout = commands.getstatusoutput(command)
+    orig_dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.all.vcf')
+    command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper --dbsnp %s --output_mode EMIT_ALL_SITES --interval_set_rule INTERSECTION -L %s -L %s -R %s -I %s -o %s %s' % (gatk_binary, dbsnp, dbsnp_chr, chromosome, ref, recal_bam, orig_dbsnp_vcf, gatk_options)
+    command += ' --genotyping_mode GENOTYPE_GIVEN_ALLELES --alleles %s' % dbsnp_chr
+    run_gatk_commands(command)
+    
+    dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.vcf')
+    command = 'grep -vP "\.\/\." %s > %s' % (orig_dbsnp_vcf, dbsnp_vcf)
+    exit_status, stdout = commands.getstatusoutput(command)
+    print exit_status, stdout
+    
+    command = 'java -Xmx6500m -jar %s -T CombineVariants -R %s --variant:raw %s --variant:db %s -o %s -priority raw,db --genotypemergeoption UNSORTED --assumeIdenticalSamples' % (gatk_binary, options.reference, raw_vcf, dbsnp_vcf, vcf)
+    run_gatk_commands(command)
+  else:
+    command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s -I %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, vcf, dbsnp, gatk_options)
+    run_gatk_commands(command)
+  
+  exit_status, stdout = commands.getstatusoutput('touch %s.done' % (vcf))
   print exit_status, stdout
-  
-  command = 'java -Xmx6500m -jar %s -T CombineVariants -R %s --variant:raw %s --variant:db %s -o %s -priority raw,db --genotypemergeoption UNSORTED --assumeIdenticalSamples' % (gatk_binary, options.reference, raw_vcf, dbsnp_vcf, vcf)
-  run_gatk_commands(command)
-else:
-  command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s -I %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, vcf, dbsnp, gatk_options)
-  run_gatk_commands(command)
-
-exit_status, stdout = commands.getstatusoutput('touch %s.done' % (vcf))
-print exit_status, stdout
+except Exception, e:
+  print >> sys.stderr, e

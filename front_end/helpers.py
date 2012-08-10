@@ -8,13 +8,12 @@ from collections import defaultdict
 
 ref_paths = {
   'hg19' : '/data/hg19/hg19.fa',
-  'ceu_ref' : '/data/ceu_ref/ceu_ref.fa',
-  'hg18' : '/data/hg18/hg18.fa' }
+  'ceu_ref' : '/data/ceu_ref/ceu_ref.fa' }
 dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-59f15b30',
+  'hg19': 'ami-7b993312',
   'hg19-himem' : 'ami-XXXXXXX'}
 instances = {
   'bwa' : 'm1.large',
@@ -47,6 +46,11 @@ def generic_response(output):
     print
     sys.stdout.write(output)
     sys.exit()
+
+def get_chroms():
+  chroms = ['chr%s' % x for x in range(1,23)]
+  chroms.extend(['chrX', 'chrY', 'chrM'])
+  return chroms
 
 def check_certs_and_setup_env(log):
     pk = glob.glob('/root/pk-*pem')

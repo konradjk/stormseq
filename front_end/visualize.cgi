@@ -22,19 +22,19 @@ def parse_bam_stats(sample_name, type):
   print "<a href='mydata/%s.%s.stats.insert_size_histogram.pdf' target='_blank'>%s BAM Insert Size Distribution</a><br/>" % (sample_name, type, type.capitalize())
   print "<a href='mydata/%s.%s.stats.quality_by_cycle.pdf' target='_blank'>%s BAM Quality by Cycle</a><br/>" % (sample_name, type, type.capitalize())
   print "<a href='mydata/%s.%s.stats.quality_distribution.pdf' target='_blank'>%s BAM Mapping Quality Distribution</a><br/>" % (sample_name, type, type.capitalize())
-  print "</div><br/>"
+  print "</div>"
   #with "/var/www/mydata/%s.%s.stats.alignment_summary_metrics" % (sample_name, type) as stats_file:
   #  pass
 
 def parse_vcf_eval(file, parameters):
   print "<em>VCF statistics:</em><br/>"
   with open(file) as f:
-    raw_data = f.readlines().split('\n')
-  variants = dict([(line.split()[4], line.strip()[11]) for line in raw_data if line.startswith('CountVariants')])
+    raw_data = f.readlines()
+  variants = dict([(line.split()[4], line.split()[11]) for line in raw_data if line.startswith('CountVariants')])
   try:
     percent_novel = 100*float(variants['novel'])/float(variants['all'])
-    print 'Called %s SNPs, out of which %s (%.2f) were novel (i.e. not found in %s)<br/>' % (variants['all'], variants['novel'], percent_novel, parameters['dbsnp_version'])
-    titv = dict([(line.split()[4], line.strip()[7]) for line in raw_data if line.startswith('TiTvVariantEvaluator')])
+    print 'Called %s SNPs, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (variants['all'], variants['novel'], percent_novel, parameters['dbsnp_version'])
+    titv = dict([(line.split()[4], line.split()[7]) for line in raw_data if line.startswith('TiTvVariantEvaluator')])
     print 'Ti/Tv ratio: %s (%s for novel variants)<br/>' % (titv['all'], titv['novel'])
   except ZeroDivisionError:
     print 'No SNPs called<br/>'
@@ -43,27 +43,27 @@ def parse_indel_vcf_eval(file, parameters):
   indels = {}
   print "<em>Indel statistics:</em><br/>"
   with open(file) as f:
-    raw_data = f.readlines().split('\n')
-  insertions = dict([(line.split()[4], line.strip()[13]) for line in raw_data if line.startswith('CountVariants')])
-  deletions = dict([(line.split()[4], line.strip()[14]) for line in raw_data if line.startswith('CountVariants')])
-  total = dict([(type, int(insertions['type']) + int(deletions['type'])) for type in insertions])
+    raw_data = f.readlines()
+  insertions = dict([(line.split()[4], line.split()[13]) for line in raw_data if line.startswith('CountVariants')])
+  deletions = dict([(line.split()[4], line.split()[14]) for line in raw_data if line.startswith('CountVariants')])
+  total = dict([(type, int(insertions[type]) + int(deletions[type])) for type in ('all', 'novel', 'known')])
   
   try:
     percent_novel = 100*float(total['novel'])/float(total['all'])
-    print 'Called %s indels, out of which %s (%.2f) were novel (i.e. not found in %s)<br/>' % (total['all'], total['novel'], percent_novel, parameters['dbsnp_version'])
+    print 'Called %s indels, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (total['all'], total['novel'], percent_novel, parameters['dbsnp_version'])
   except ZeroDivisionError:
     print 'No indels called<br/>'
     return
   
   try:
     percent_novel = 100*float(insertions['novel'])/float(insertions['all'])
-    print 'Called %s insertions, out of which %s (%.2f) were novel (i.e. not found in %s)<br/>' % (insertions['all'], insertions['novel'], percent_novel, parameters['dbsnp_version'])
+    print 'Called %s insertions, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (insertions['all'], insertions['novel'], percent_novel, parameters['dbsnp_version'])
   except ZeroDivisionError:
     print 'No insertions called<br/>'
   
   try:
     percent_novel = 100*float(deletions['novel'])/float(deletions['all'])
-    print 'Called %s deletions, out of which %s (%.2f) were novel (i.e. not found in %s)<br/>' % (deletions['all'], deletions['novel'], percent_novel, parameters['dbsnp_version'])
+    print 'Called %s deletions, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (deletions['all'], deletions['novel'], percent_novel, parameters['dbsnp_version'])
   except ZeroDivisionError:
     print 'No deletions called<br/>'
 
@@ -99,9 +99,9 @@ for sample_name in sample_names:
     parse_bam_stats(sample_name, 'merged')
   if check_file('%s.final.stats.tar.gz' % sample_name):
     parse_bam_stats(sample_name, 'final')
-    
+  print "<div style='clear: both'></div><br/>"
   if check_file('%s.vcf.eval' % sample_name):
     parse_vcf_eval('%s.vcf.eval' % sample_name, parameters)
     if parameters['indel_calling']:
-      parse_indel_vcf_eval('%s.vcf.eval' % sample_name)
+      parse_indel_vcf_eval('%s.vcf.eval' % sample_name, parameters)
 

@@ -146,14 +146,15 @@ function setup_charts(all_responses) {
         content: $("#progress-charts-" + sample),
         position: {
           my: 'top left',
-          target: 'mouse',
-          viewport: $(window), // Keep it on-screen at all times if possible
-          adjust: {
-            x: 10,  y: 10
-          }
+          at: 'bottom right'
+          //viewport: $(window), // Keep it on-screen at all times if possible
+          //adjust: {
+          //  x: 10,  y: 10
+          //}
         },
         hide: {
-          fixed: true // Helps to prevent the tooltip from hiding ocassionally when tracking!
+          fixed: true, // Helps to prevent the tooltip from hiding ocassionally when tracking!
+          delay: 240
         },
         style: 'qtip-progress'
       });
@@ -428,7 +429,7 @@ function make_final_chart(sample, response_data) {
         
         if (response_data['outputs']['final_stats']) {
             chart.select('g').append("text")
-                .attr("x", w-x(0.5)-23)
+                .attr("x", w-x(0.5)-24)
                 .attr("y", h/4  )
                 .text('Stats done')
                 .attr("fill", "white")
@@ -444,7 +445,7 @@ function make_final_chart(sample, response_data) {
         }
         if (response_data['outputs']['depth']) {
             chart.select('g').append("text")
-                .attr("x", w-x(0.5)-35)
+                .attr("x", w-x(0.5)-25)
                 .attr("y", h/4 + 20 )
                 .text('Depth done')
                 .attr("fill", "white")
@@ -473,7 +474,7 @@ function make_final_chart(sample, response_data) {
                 .attr('class', 'link vcftext ' + sample);
         if (response_data['outputs']['vcf_eval']) {
             chart.select('g').append("text")
-                .attr("x", w-x(0.5)-25)
+                .attr("x", w-x(0.5)-24)
                 .attr("y", 3*h/4 + 10)
                 .text('Eval done')
                 .attr("fill", "white")
