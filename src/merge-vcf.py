@@ -11,14 +11,10 @@ parser = OptionParser()
 parser.add_option('--output', help='Output file')
 parser.add_option('--priority', help='Priority string for GATK')
 parser.add_option('--reference', help='Reference')
-parser.add_option('--indels', action='store_true', help='Merge indels instead of SNPs', default=False)
 
 (options,args) = parser.parse_args()
 
-if options.indels:
-  input = ' '.join(["--variant %s_%s.indel.vcf" % (options.output.replace('.indel.vcf', ''), chr) for chr in options.priority.split(',')])
-else:
-  input = ' '.join(["--variant %s_%s.vcf" % (options.output.replace('.vcf', ''), chr) for chr in options.priority.split(',')])
+input = ' '.join(["--variant %s_%s.vcf" % (options.output.replace('.vcf', ''), chr) for chr in options.priority.split(',')])
 
 gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
 

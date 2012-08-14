@@ -4,7 +4,7 @@ import os, glob, sys
 import gzip, re
 import json
 import commands, subprocess
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import cgitb; cgitb.enable()  # for troubleshooting
 from helpers import *
 
@@ -13,10 +13,19 @@ redirect_url = "/"
 f = open("/tmp/checking_log.txt","w")
 form = cgi.FieldStorage()
 samples = [re.sub('^stormseq_', '', os.path.splitext(os.path.basename(file))[0]) for file in glob.glob('/var/www/stormseq_*.cnf')]
+samples.sort()
+if 'call_all_samples' in samples:
+  samples.remove('call_all_samples')
+  samples.append('call_all_samples')
 
-response = {}
+response = OrderedDict()
 for sample_name in samples:
   f.write(sample_name + '\n')
+  if os.path.exists('/var/www/%s.done' % sample_name):
+    response[sample_name] = {}
+    response[sample_name]['completed'] = True
+    continue
+  
   check_command = ("sudo starcluster sshmaster stormseq_%s" % sample_name).split(' ')
   check_command.append("'ls -1 /mydata/'")
   try:
@@ -33,6 +42,15 @@ for sample_name in samples:
   
   with open('/var/www/stormseq_%s.cnf' % sample_name) as cnf:
     input = json.loads(cnf.readline())
+  
+  if sample_name == 'call_all_samples':
+    calls = {}
+    for chrom in chroms:
+      calls[chrom] = int(('stormseq_all_samples_%s.vcf.done' % chrom) in files)
+    out = {'cleans' : calls, 'completed': 'stormseq_all_samples.vcf' in files}
+    f.write(json.dumps(out))
+    response[sample_name] = out
+    continue
   
   bases = [os.path.basename(x['1']) for x in input['files'].values()]
   
@@ -56,16 +74,18 @@ for sample_name in samples:
   outputs['final'] = int(sample_name + '.final.bam.done' in files)
   outputs['vcf'] = int(sample_name + '.vcf.done' in files)
   
-  for key in outputs.keys():
-    outfiles = [file for file in all_files if file.find('stormseq') > -1 and file.find(key) > -1]
-    outputs[key + '_file'] = outfiles[0] if key and len(outfiles) > 0 else ''
-  
   outputs['merged_stats'] = int(sample_name + '.merged.stats.tar.gz.done' in files)
   outputs['final_stats'] = int(sample_name + '.final.stats.tar.gz.done' in files)
   outputs['depth'] = int(sample_name + '.depth.done' in files)
   outputs['vcf_eval'] = int(sample_name + '.vcf.eval.done' in files)
   
-  out = {'initials' : initials, 'cleans' : cleans, 'outputs' : outputs}
+  completed = len(outputs.keys()) == sum(outputs.values())
+  
+  for key in outputs.keys():
+    outfiles = [file for file in all_files if file.find('stormseq') > -1 and file.find(key) > -1]
+    outputs[key + '_file'] = outfiles[0] if key and len(outfiles) > 0 else ''
+  
+  out = {'initials' : initials, 'cleans' : cleans, 'outputs' : outputs, 'completed': completed}
   f.write(json.dumps(out))
   response[sample_name] = out
 

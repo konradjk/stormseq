@@ -103,7 +103,17 @@ function show_progress_chart(sample) {
     "Close": function() {$(this).dialog("close");}
     }});
 }
-function get_sample_progress_string(response_data) {
+function get_sample_progress_string(sample, response_data) {
+  if (sample == 'call_all_samples') {
+    if (response_data['completed'] == true) {
+      return "Done calling all samples together!"
+    } else {
+      return "Calling all samples together..."
+    }
+  }
+  if (response_data['completed'] == true) {
+    return "Done mapping, cleaning, and calling!"
+  }
   if (response_data['outputs']['merged'] == 0) {
     return "Mapping...";
   } else {
@@ -131,6 +141,8 @@ function get_dimensions(files, steps) {
 
 function setup_charts(all_responses) {
   if (all_responses == 'not-running') {
+    $('#all-progress-charts').empty();
+    $('#all-progress-charts').append('No jobs are currently running.');
     return false;
   } else {
     $('#start_button').button("option","disabled",true);
@@ -138,33 +150,44 @@ function setup_charts(all_responses) {
   $('#all-progress-charts').empty();
   all_response_data = JSON.parse(all_responses);
   $.each(all_response_data, function(sample, response_data) {
-    var sample_progress = get_sample_progress_string(response_data);
+    var sample_progress = get_sample_progress_string(sample, response_data);
     if (Object.keys(all_response_data).length > 1) {
       $('#all-progress-charts').append("<span class='qtip-link' id='progress-header-" + sample + "'" +"><b>" + sample + "</b>: " + sample_progress + "</span><br/>");
-      $("#all-progress-charts-hidden").append("<div class='hidden' id='progress-charts-" + sample + "'" + "'></div>");
-      $("#progress-header-" + sample).qtip({
-        content: $("#progress-charts-" + sample),
-        position: {
-          my: 'top left',
-          at: 'bottom right'
-          //viewport: $(window), // Keep it on-screen at all times if possible
-          //adjust: {
-          //  x: 10,  y: 10
-          //}
-        },
-        hide: {
-          fixed: true, // Helps to prevent the tooltip from hiding ocassionally when tracking!
-          delay: 240
-        },
-        style: 'qtip-progress'
-      });
+      if (sample_progress.indexOf('Done') != 0) {
+        $("#all-progress-charts-hidden").append("<div class='hidden' id='progress-charts-" + sample + "'" + "'></div>");
+        $("#progress-header-" + sample).qtip({
+          content: $("#progress-charts-" + sample),
+          position: {
+            my: 'top left',
+            at: 'bottom right'
+          },
+          hide: {
+            fixed: true, // Helps to prevent the tooltip from hiding ocassionally when tracking!
+            delay: 240
+          },
+          style: 'qtip-progress'
+        });
+      }
     } else {
       $('#all-progress-charts').append("<span id='progress-header-" + sample + "'" +"><b>" + sample + "</b>: " + sample_progress + "</span><br/>");
-      $("#all-progress-charts-hidden").append("<div id='progress-charts-" + sample + "'></div>");
+      if (sample_progress.indexOf('Done') != 0) {
+        $("#all-progress-charts-hidden").append("<div id='progress-charts-" + sample + "'></div>");
+      }
     }
     $("#progress-charts-" + sample).append("<span id='progress-chart-" + sample + "'></span><span id='progress-chart-2-" + sample + "'></span><br/>");
   });
   $.each(all_response_data, function(sample, response_data) {
+    if (response_data['completed'] == true) {
+      return true;
+    }
+    if (sample != 'call_all_samples') {
+      setup_mapping_chart(sample, response_data);
+    }
+    setup_cleaning_chart(sample, response_data);
+  });
+  update_map_charts(all_responses);
+}
+function setup_mapping_chart(sample, response_data) {
     // Mapping chart
     var files = Object.keys(response_data['initials']);
     files.sort();
@@ -241,10 +264,15 @@ function setup_charts(all_responses) {
        .attr("dy", ".35em")
        .attr("text-anchor", "end")
        .text(function(d, i) { return files[i]; });
-    
+}
+function setup_cleaning_chart(sample, response_data) {
     // Cleaning chart
     chroms = get_chroms();
-    get_dimensions(chroms, 6);
+    steps = 6;
+    if (sample == 'call_all_samples') {
+      steps = 2;
+    }
+    get_dimensions(chroms, steps);
     
     var chart = d3.select("#progress-chart-2-" + sample).append("svg")
         .attr("class", "chart")
@@ -262,7 +290,7 @@ function setup_charts(all_responses) {
         .style("fill", "url(#gradient)");
     
     chart.selectAll("line")
-        .data(x.ticks(5))
+        .data(x.ticks(steps - 1))
         .enter().append("line")
         .attr("x1", x)
         .attr("x2", x)
@@ -271,7 +299,7 @@ function setup_charts(all_responses) {
         .style("stroke", "#ccc");
     
     chart.selectAll(".rule")
-        .data(x.ticks(5))
+        .data(x.ticks(steps - 1))
        .enter().append("text")
          .attr("class", "rule")
          .attr("x", x)
@@ -279,8 +307,12 @@ function setup_charts(all_responses) {
          .attr("dy", -3)
          .attr("text-anchor", "middle")
          .text(function (input) {
-                   var labels = {1: 'Split', 2: 'Mark Duplicates', 3: 'Realignment', 4: 'Recalibration', 5: 'Variant Calling', 6: 'Done!'};
-                   return labels[input];
+                  if (sample == 'call_all_samples') {
+                    var labels = {2: 'Done!'};
+                  } else {
+                    var labels = {1: 'Split', 2: 'Mark Duplicates', 3: 'Realignment', 4: 'Recalibration', 5: 'Variant Calling', 6: 'Done!'};
+                  }
+                  return labels[input];
               });
      
     var bars = chart.selectAll("g.bar")
@@ -310,18 +342,25 @@ function setup_charts(all_responses) {
     if (typeof progress_id === 'undefined') {
       progress_id = setInterval(update_charts, 300000);
     }
-  });
-  update_map_charts(all_responses);
 }
 function update_charts() {
     $.post('check_progress.cgi', { sample_names: JSON.stringify($('#sample_name').val().split('\n')) }, update_map_charts);
 }
 function update_map_charts(all_responses){
   if (all_responses == 'not-running') {
+    $('#all-progress-charts').empty();
+    $('#all-progress-charts').append('No jobs are currently running.');
     return false;
   }
   all_response_data = JSON.parse(all_responses);
   $.each(all_response_data, function(sample, response_data) {
+    if (response_data['completed'] == true) {
+      return true;
+    }
+    if (sample == 'call_all_samples') {
+      make_clean_chart(sample, response_data);
+      return true;
+    }
     $('.intbamtext.' + sample).empty()
     $('.finalbamtext.' + sample).empty()
     $('.vcftext.' + sample).empty()
@@ -399,7 +438,11 @@ function make_clean_chart(sample, response_data) {
     $.each(chroms, function(i, v) {
         data.push(response_data['cleans'][v]);
     });
-    get_dimensions(chroms, 6);
+    if (sample == 'call_all_samples') {
+      get_dimensions(chroms, 1);
+    } else {
+      get_dimensions(chroms, 6);
+    }
     var chart = d3.select("#progress-chart-2-" + sample);
     chart.selectAll("rect")
         .data(data)
@@ -416,8 +459,12 @@ function make_clean_chart(sample, response_data) {
 function make_final_chart(sample, response_data) {
     var chart = d3.select("#progress-chart-2-" + sample);
     chroms = get_chroms();
-    get_dimensions(chroms, 6);
-    if (response_data['outputs']['final']) {
+    if (sample == 'call_all_samples') {
+      get_dimensions(chroms, 1);
+    } else {
+      get_dimensions(chroms, 6);
+    }
+    if (sample != 'call_all_samples' && response_data['outputs']['final']) {
         
         chart.select('g').append("text")
                 .attr("x", w-x(0.5)-10)
@@ -465,7 +512,7 @@ function make_final_chart(sample, response_data) {
             .attr("height", h/2 )
             .style("fill", "url(#gradient)");
     }
-    if (response_data['outputs']['vcf']) {
+    if ((sample != 'call_all_samples' && response_data['outputs']['vcf']) || (response_data['completed'])) {
         chart.select('g').append("text")
             .attr("x", w-x(0.5)-10)
             .attr("y", 3*h/4 - 10)
@@ -546,7 +593,7 @@ function get_all_data() {
         force_large_machine: $('#force-machine-type input:checked').val(),
         indel_calling: $('#call_indels')[0].checked,
         sv_calling: $('#call_svs')[0].checked,
-        joint_calling: false
+        joint_calling: $('#joint_calling')[0].checked
     };
     $.extend(output, get_values_from_textarea($('#alignment-pipeline').val()));
     $.extend(output, get_values_from_checkboxes('gatk-clean'));

@@ -5,7 +5,7 @@ from optparse import OptionParser
 import commands
 from multiprocessing import Process
 
-root = '/usr/local/bin/'
+root = '/usr/local/bin'
 
 parser = OptionParser()
 parser.add_option('--input', help='BAM file')
@@ -16,7 +16,7 @@ parser.add_option('--gene_list', default=None)
 
 (options, args) = parser.parse_args()
 
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
 other_options = '--omitDepthOutputAtEachBase --omitLocusTable'
 other_options += '' if options.gene_list is None else ' --calculateCoverageOverGenes %s' % options.gene_list
 other_options += '' if options.intervals is None else ' -L %s' % options.intervals

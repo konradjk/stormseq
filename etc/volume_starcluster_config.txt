@@ -1,0 +1,5 @@
+volumes = stormseq_%(sample)s
+
+[volume stormseq_%(sample)s]
+VOLUME_ID = %(volume)s
+MOUNT_PATH = /mydata

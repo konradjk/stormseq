@@ -1,0 +1,15 @@
+####################################
+## StarCluster Configuration File ##
+####################################
+[global]
+DEFAULT_TEMPLATE=stormseq_%(sample)s
+
+#############################################
+## AWS Credentials and Connection Settings ##
+#############################################
+[aws info]
+AWS_ACCESS_KEY_ID = %(access_key_id)s
+AWS_SECRET_ACCESS_KEY = %(secret_access_key)s
+AWS_USER_ID = %(aws_account_number)s
+AWS_REGION_NAME = us-east-1
+

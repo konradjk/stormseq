@@ -6,7 +6,7 @@ import commands, subprocess
 from multiprocessing import Process
 from helpers import *
 
-root = '/usr/local/bin/'
+root = '/usr/local/bin'
 
 parser = OptionParser()
 parser.add_option('--fq1', help='FASTQ file, pair 1')
@@ -43,11 +43,22 @@ sorted_bam_prefix = options.output + file_root + '.sorted'
 
 try:
   if s3_fq1 == s3_fq2:
-    command = "s3cmd -c /mydata/.s3cfg get %s -" % (s3_fq1)
+    temp_bam = fq1 + '.tempbam'
+    command = "s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, temp_bam)
+    stdout = commands.getoutput(command)
+    print stdout
+    temp_bam_sorted = fq1 + '.tempbam.sorted'
+    sort_command = '%s sort -no -m 20000000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
+    stdout = commands.getoutput(sort_command)
+    open(temp_bam, 'w').close()
+    print stdout
+    temp_bam_sorted += '.bam'
     fq1 += '.fq'
     fq2 += '.fq'
-    convert = 'java -Xmx6g -jar %s I=/dev/stdin F=%s F2=%s' % (picard_convert_binary, fq1, fq2)
-    stdout = commands.getoutput(command + ' | ' + convert)
+    convert = 'java -Xmx6g -jar %s I=%s F=%s F2=%s' % (picard_convert_binary, temp_bam_sorted, fq1, fq2)
+    stdout = commands.getoutput(convert)
+    open(temp_bam_sorted, 'w').close()
+    print stdout
   else:
     get_command1 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq1)
     get_command2 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq2)

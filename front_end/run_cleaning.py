@@ -42,24 +42,41 @@ if True:
  if total_nodes < nodes_needed:
     nodes_to_add = nodes_needed - total_nodes
     nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
-    nodes_command = "sudo starcluster an -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
-    f.write(nodes_command + '\n')
-    started = False
-    failed = 0
-    while not started:
+    try:
+      nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
+      f.write(nodes_command + '\n')
+      output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+      f.write(output + '\n')
+      f.flush()
+    except subprocess.CalledProcessError, e:
+      f.write(str(e) + '\n')
+      f.flush()
+      time.sleep(120)
       try:
+        # Try adding nodes again
+        nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -x -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
+        f.write(nodes_command + '\n')
         output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
-        started = True
         f.write(output + '\n')
         f.flush()
       except subprocess.CalledProcessError, e:
+        # Last ditch effort if add nodes fails
         f.write(str(e) + '\n')
         f.flush()
-        time.sleep(300)
-        nodes_command = "sudo starcluster an -x -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
-        failed += 1
-        if failed == 3:
-          f.write('Failed 3 times. Exiting...\n')
+        time.sleep(120)
+        try:
+          nodes_command = "sudo timelimit -t 1800 -T 1 starcluster terminate -c stormseq_%s" % (sample)
+          f.write(nodes_command + '\n')
+          output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+          f.write(output + '\n')
+          f.flush()
+          nodes_command = "sudo timelimit -t 1800 -T 1 starcluster start -s %s --force-spot-master --cluster-template=stormseq_%s stormseq_%s" % (nodes_needed, sample, sample)
+          f.write(nodes_command + '\n')
+          output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+          f.write(output + '\n')
+          f.flush()
+        except subprocess.CalledProcessError, e:
+          f.write('Something went wrong with the cluster...\n')
           sys.exit()
  elif total_nodes > nodes_needed:
     nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])

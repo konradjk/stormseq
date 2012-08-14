@@ -1,0 +1,12 @@
+[key stormseq_starcluster_%(sample)s]
+KEY_LOCATION=~/.ssh/stormseq_starcluster_%(sample)s.rsa
+
+[cluster stormseq_%(sample)s]
+KEYNAME = stormseq_starcluster_%(sample)s
+CLUSTER_SIZE = %(number_of_processes)s
+CLUSTER_USER = sgeadmin
+CLUSTER_SHELL = bash
+NODE_IMAGE_ID = %(ami)s
+NODE_INSTANCE_TYPE = %(instance_type)s
+AVAILABILITY_ZONE = %(zone)s
+%(spot_request)s

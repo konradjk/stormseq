@@ -13,7 +13,7 @@ dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-7b993312',
+  'hg19': 'ami-8bc673e2',
   'hg19-himem' : 'ami-XXXXXXX'}
 instances = {
   'bwa' : 'm1.large',
@@ -163,9 +163,9 @@ def add_volume_to_config_file(volume, sample):
 # Later on
 def put_file_in_s3(sample, fname, bucket, hold):
     upload_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
-    current_date = time.strftime("%d%m%Y", time.gmtime())
+    current_date = time.strftime("%Y%m%d", time.gmtime())
     bucket_file = re.sub(sample, sample + '_stormseq_%s' % current_date, fname)
-    args = "'qsub -hold_jid %s -cwd -b y s3cmd -c /mydata/.s3cfg put /mydata/%s s3://%s/%s'" % (hold, fname, bucket, bucket_file)
+    args = "'qsub -hold_jid %s -q all.q@master -cwd -b y s3cmd -c /mydata/.s3cfg put /mydata/%s s3://%s/%s'" % (hold, fname, bucket, bucket_file)
     upload_command.append(args)
     stdout = subprocess.check_output(upload_command, stderr=subprocess.PIPE)
     job = get_job_id(stdout)
