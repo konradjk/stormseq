@@ -48,10 +48,15 @@ try:
           break
       
       if file_dict['mergef'] and not file_dict['mergefu'] and bam_upload_job not in all_jobs:
-          f.write(','.join(all_jobs) + '\n')
+          f.write(bam_upload_job + ' not in ' + ','.join(all_jobs) + '\n')
+          _, out = commands.getstatusoutput("sudo starcluster sshmaster stormseq_%s 'cat python*%s'" % (sample, bam_upload_job))
+          f.write('Output was:\n%s\n' % out)
+          _, out = commands.getstatusoutput("sudo starcluster sn stormseq_%s node001 'cat python*%s'" % (sample, bam_upload_job))
+          f.write('Output was:\n%s\n' % out)
           f.write('Done final and upload\n')
           commands.getstatusoutput('touch /var/www/%s.done' % sample)
           file_dict['mergefu'] = True
+      
       if not file_dict['mergef'] and qstat_stdout.find('mergef') == -1:
           f.write(qstat_stdout + '\n')
           f.write('found %s.final.bam\n' % sample)

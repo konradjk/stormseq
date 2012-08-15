@@ -159,7 +159,7 @@ priority = ','.join(chroms)
 all_bams = ','.join(['/mydata/' + parameters['sample_name'] + '_' + chrom + '.recal.bam' for chrom in chroms])
 
 merge_command = "sudo starcluster sshmaster stormseq_%s" % sample
-merge_command += " 'qsub -hold_jid %s -b y -cwd -q all.q@node001 -N mergef python merge.py --bams=%s --output=/mydata/%s'" % (','.join(all_clean_jobs), all_bams, parameters['sample_name'] + '.final.bam')
+merge_command += " 'qsub -hold_jid %s -b y -cwd -q all.q@master,all.q@node001 -N mergef python merge.py --bams=%s --output=/mydata/%s'" % (','.join(all_clean_jobs), all_bams, parameters['sample_name'] + '.final.bam')
 f.write(merge_command)
 exit_status, stdout = commands.getstatusoutput(merge_command)
 job = get_job_id(stdout)
@@ -172,7 +172,7 @@ exit_status, stdout = commands.getstatusoutput(merge_command)
 f.write(stdout + '\n')
 
 depth_command = "sudo starcluster sshmaster stormseq_%s" % sample
-depth_command += " 'qsub -hold_jid %s -b y -cwd -q all.q@node001 -N depth python depth.py --reference=%s --input=/mydata/%s.final.bam --output=/mydata/%s.depth'" % (job, ref_paths[parameters['genome_version']], parameters['sample_name'], parameters['sample_name'])
+depth_command += " 'qsub -hold_jid %s -b y -cwd -q all.q@master,all.q@node001 -N depth python depth.py --reference=%s --input=/mydata/%s.final.bam --output=/mydata/%s.depth'" % (job, ref_paths[parameters['genome_version']], parameters['sample_name'], parameters['sample_name'])
 f.write(depth_command)
 exit_status, stdout = commands.getstatusoutput(depth_command)
 job = get_job_id(stdout)
@@ -180,14 +180,14 @@ f.write(stdout + '\n')
 
 priority = ','.join(chroms)
 vcf_merge_command = "sudo starcluster sshmaster stormseq_%s" % sample
-vcf_merge_command += " 'qsub -hold_jid %s -b y -q all.q@node001 -cwd -N mergevs python merge-vcf.py --reference=%s --priority=%s --output=/mydata/%s'" % (','.join(all_call_jobs), ref_paths[parameters['genome_version']], priority, parameters['sample_name'] + '.vcf')
+vcf_merge_command += " 'qsub -hold_jid %s -b y -q all.q@master,all.q@node001 -cwd -N mergevs python merge-vcf.py --reference=%s --priority=%s --output=/mydata/%s'" % (','.join(all_call_jobs), ref_paths[parameters['genome_version']], priority, parameters['sample_name'] + '.vcf')
 f.write(vcf_merge_command)
 exit_status, stdout = commands.getstatusoutput(vcf_merge_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')
 
 vcf_stats_command = "sudo starcluster sshmaster stormseq_%s" % sample
-vcf_stats_command += " 'qsub -hold_jid %s -b y -q all.q@node001 -cwd -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
+vcf_stats_command += " 'qsub -hold_jid %s -b y -q all.q@master,all.q@node001 -cwd -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
 f.write(vcf_stats_command)
 exit_status, stdout = commands.getstatusoutput(vcf_stats_command)
 job = get_job_id(stdout)
