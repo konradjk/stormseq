@@ -16,6 +16,14 @@ $(document).ready(function(){
             }
         );
     });
+    $('#cancel_button').click(function() {
+        $('#run-status').empty();
+        $.post("cancel_pipeline.cgi", { all_objects: JSON.stringify(get_all_data()) },
+            function(response){
+                cancel_handle_response(response);
+            }
+        );
+    });
     $("#amazon-request-types").buttonset();
     $("#force-machine-type").buttonset();
     $("#advanced_settings").accordion({
@@ -593,13 +601,15 @@ function get_all_data() {
         force_large_machine: $('#force-machine-type input:checked').val(),
         indel_calling: $('#call_indels')[0].checked,
         sv_calling: $('#call_svs')[0].checked,
-        joint_calling: $('#joint_calling')[0].checked
+        joint_calling: $('#joint_calling')[0].checked,
+        delete_s3: $('#delete_s3')[0].checked
     };
     $.extend(output, get_values_from_textarea($('#alignment-pipeline').val()));
     $.extend(output, get_values_from_checkboxes('gatk-clean'));
     $.extend(output, get_values_from_checkboxes($('#calling-pipeline').val()));
     $.extend(output, get_values_from_textarea($('#calling-pipeline').val()));
     $.extend(output, get_values_from_textarea('amazon'));
+    $.extend(output, get_values_from_checkboxes('cancel'));
     return(output);
 }
 
@@ -607,6 +617,19 @@ function mapping_handle_response(response) {
     $('#run-status').empty();
     if (response == 'success') {
         $('#run-status').append('Your jobs are running. You can view the progress and visualize results below.');
+        click_refresh_progress();
+    } else {
+        $('#run-status').append('There was an error: ' + response);
+    }
+}
+
+function cancel_handle_response(response) {
+    $('#run-status').empty();
+    if (response == 'success') {
+        $('#run-status').append('Your jobs have been canceled.');
+        click_refresh_progress();
+    } else if (response == 'success_and_deleted') {
+        $('#run-status').append('Your jobs have been canceled and your S3 bucket deleted.');
         click_refresh_progress();
     } else {
         $('#run-status').append('There was an error: ' + response);

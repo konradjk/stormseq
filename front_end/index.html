@@ -282,6 +282,22 @@ google.load("visualization", "1", {packages:["corechart"]});
           The mapping and variant calling for a whole genome (30X coverage) is estimated at $X for BWA and $X for SNAP.
           For a full exome (80X coverage), the cost is estimated at $X for BWA $X for SNAP.
           However, note that processing times (and thus costs) may vary.
+          <h3>Cancel processing</h3>
+          <p>
+              <button id='cancel_button' class='btn red' style='height:40px; font-size:2.5em;'>Cancel</button>
+          </p>
+          <p>
+          When you click "Cancel", all of your Amazon instances will be terminated.  Any jobs that are incomplete
+          will not be finished.  You will no longer be charged for compute time on EC2.
+          </p>
+          <p>
+          Check the box below If you additionally would like your S3 bucket deleted (you will lose all your uploaded data).
+          <div id='cancel-advanced'>
+          <ul><li><input type="checkbox" id="delete_s3" name="delete_s3"/>
+              <label for="delete_s3">Delete my S3 bucket</label>
+          </ul>
+          </div>
+          </p>
           <br/><br/>
           <div id='run-status'></div>
           <br/>
