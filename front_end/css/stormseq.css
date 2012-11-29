@@ -73,10 +73,6 @@
     font-weight: normal;
     font-style: normal;
 }
-.qtip-progress {
-  max-width: 1040px;
-  width: 1040px;
-}
 body {
     background:#f7f7f7;
     font-family: 'SerifaLT45LightRegular', Helvetica, Arial, sans-serif;
@@ -92,8 +88,23 @@ a {
 .qtip-link {
   border-bottom:1px dashed;
   cursor:help;
+  max-width: 440px;
+  width: 440px;
 }
 
+.ui-tooltip, .qtip{
+	max-width: 480px;
+	width: 480px;
+}
+
+.qtip-progress {
+  max-width: 1040px;
+  width: 1040px;
+}
+.qtip-progress-short {
+  max-width: 580px;
+  width: 580px;
+}
 .caption, .show {
     line-height:1.2;
 }

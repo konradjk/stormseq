@@ -1,6 +1,8 @@
 import sys
 import os
 import re
+import json
+import boto
 from optparse import OptionParser
 import commands, subprocess
 from multiprocessing import Process
@@ -16,8 +18,13 @@ parser.add_option('--platform', help='Platform', default='Illumina')
 parser.add_option('--sample', help='Sample', default='Me')
 parser.add_option('--threads', help='Sample', default=6)
 parser.add_option('--output', help='Output directory')
+parser.add_option('--config_file', help='Config File (JSON)')
 
 (options, args) = parser.parse_args()
+
+with open(options.config_file) as f:
+  input = json.loads(f.readline())
+parameters = input['parameters']
 
 s3_fq1 = options.fq1
 s3_fq2 = options.fq2
@@ -31,6 +38,7 @@ threads = options.threads
 
 snap_binary = '%s/snap' % root
 samtools_binary = '%s/samtools' % root
+samtools_mt_binary = '%s/samtools-multi/samtools' % root
 picard_binary = '%s/picard/AddOrReplaceReadGroups.jar' % root
 picard_convert_binary = '%s/picard/SamToFastq.jar' % root
 
@@ -43,15 +51,24 @@ sorted_bam_prefix = options.output + file_root + '.sorted'
 
 try:
   if s3_fq1 == s3_fq2:
-    temp_bam = fq1 + '.tempbam'
-    command = "s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, temp_bam)
-    stdout = commands.getoutput(command)
-    print stdout
-    temp_bam_sorted = fq1 + '.tempbam.sorted'
-    sort_command = '%s sort -no -m 20000000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
-    stdout = commands.getoutput(sort_command)
+    temp_bam = fq1
+    #command = "s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, temp_bam)
+    for i in range(3):
+      command = 'timelimit -t 86400 -T 1 aria2c -s16 -x16 -d /mnt/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq1.split('/')[3:])))
+      stat, stdout = commands.getstatusoutput(command)
+      print stat, stdout
+      if not stat:
+        break
+    temp_bam_sorted = fq1 + '.sorted'
+    #sort_command = '%s sort -no -@ 8 -m 6G %s %s' % (samtools_mt_binary, temp_bam, temp_bam_sorted)
+    sort_command = '%s sort -n -m 35000000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
+    for i in range(3):
+      print "Attempt: %s" % i
+      stat, stdout = commands.getstatusoutput(sort_command)
+      print stat, stdout
+      if not stat:
+        break
     open(temp_bam, 'w').close()
-    print stdout
     temp_bam_sorted += '.bam'
     fq1 += '.fq'
     fq2 += '.fq'
@@ -60,27 +77,41 @@ try:
     open(temp_bam_sorted, 'w').close()
     print stdout
   else:
-    get_command1 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq1)
-    get_command2 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq2)
-    gzip = fq1.endswith('.gz')
+    #get_command1 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq1)
+    #get_command2 = "s3cmd -c /mydata/.s3cfg get %s " % (s3_fq2)
+    
+    for i in range(3):
+      get_command1 = 'timelimit -t 86400 -T 1 aria2c -s8 -x8 -d /mnt/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq1.split('/')[3:])))
+      print get_command1
+      
+      stat, stdout = commands.getstatusoutput(get_command1)
+      print stat, stdout
+      if not stat:
+        break
+      
+    for i in range(3):
+      get_command2 = 'timelimit -t 86400 -T 1 aria2c -s8 -x8 -d /mnt2/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq2.split('/')[3:])))
+      stat, stdout = commands.getstatusoutput(get_command2)
+      print stat, stdout
+      if not stat:
+        break
+    
     # 1. Unzip files if zipped
-    if gzip:
+    if fq1.endswith('.gz'):
+      get_command1 = 'gzip -d %s' % fq1
+      get_command2 = 'gzip -d %s' % fq2
+      
       fq1 = os.path.splitext(fq1)[0]
       fq2 = os.path.splitext(fq2)[0]
-      get_command1 += '- | gzip -d > %s' % fq1
-      get_command2 += '- | gzip -d > %s' % fq2
-    else:
-      get_command1 += fq1
-      get_command2 += fq2
-    
-    get1 = Process(target=commands.getstatusoutput, args=(get_command1, ))
-    get1.start()
-    
-    get2 = Process(target=commands.getstatusoutput, args=(get_command2, ))
-    get2.start()
-    
-    get1.join()
-    get2.join()
+      
+      get1 = Process(target=commands.getstatusoutput, args=(get_command1, ))
+      get1.start()
+      
+      get2 = Process(target=commands.getstatusoutput, args=(get_command2, ))
+      get2.start()
+      
+      get1.join()
+      get2.join()
   
   exit_status, stdout = commands.getstatusoutput('sudo sysctl vm.overcommit_memory=1')
   
@@ -110,8 +141,10 @@ try:
   run_jobs = []
   thread_bams = []
   for i in range(threads):
+    thread_sam = re.sub('.sam$', '_%02d.sam' % i, sam)
     thread_bam = re.sub('.sam$', '_%02d.bam' % i, sam)
     thread_rg_bam = re.sub('.bam$', '.rg.bam', thread_bam)
+    open(thread_sam, 'w').close()
     command = 'java -Xmx5g -jar %s INPUT=%s OUTPUT=%s SORT_ORDER=unsorted VALIDATION_STRINGENCY=SILENT' % (picard_binary, thread_bam, thread_rg_bam)
     command += ' RGID=%s RGLB=%s RGPL=%s RGPU=%s RGSM=%s' % (read_group_id, sample, platform, 1, sample)
     print command
@@ -122,9 +155,16 @@ try:
   
   [job.join() for job in run_jobs]
   
+  for thread_rg_bam in thread_bams:
+    thread_bam = re.sub('.rg.bam$', '.bam', thread_rg_bam)
+    open(thread_bam, 'w').close()
+  
   # Cat
   exit_status, stdout = commands.getstatusoutput('%s cat -o %s %s' % (samtools_binary, rg_bam, ' '.join(thread_bams)))
   
+  for thread_rg_bam in thread_bams:
+    open(thread_rg_bam, 'w').close()
+    
   # 4. Sort BAM
   exit_status, stdout = commands.getstatusoutput('%s sort %s %s' % (samtools_binary, rg_bam, sorted_bam_prefix))
   print exit_status, stdout

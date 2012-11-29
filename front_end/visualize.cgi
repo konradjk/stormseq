@@ -27,7 +27,7 @@ def parse_bam_stats(sample_name, type):
   #  pass
 
 def parse_vcf_eval(file, parameters):
-  print "<em>VCF statistics:</em><br/>"
+  print "<em>SNP statistics:</em><br/>"
   with open(file) as f:
     raw_data = f.readlines()
   variants = dict([(line.split()[4], line.split()[11]) for line in raw_data if line.startswith('CountVariants')])

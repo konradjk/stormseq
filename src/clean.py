@@ -13,7 +13,8 @@ parser.add_option('--dbsnp', help='dbSNP VCF file')
 parser.add_option('--reference', help='Genome FASTA file')
 parser.add_option('--chromosome', help='Chromosome')
 parser.add_option('--platform', help='Platform', default='Illumina')
-parser.add_option('--covariates', help='Covariates (comma-separated)', default='ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,DinucCovariate,HomopolymerCovariate')
+#parser.add_option('--covariates', help='Covariates (comma-separated)', default='ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,DinucCovariate,HomopolymerCovariate') #1.6
+parser.add_option('--covariates', help='Covariates (comma-separated)', default='ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,ContextCovariate')
 parser.add_option('--intervals', help='Intervals file (for exome seq, e.g.)', default=None)
 parser.add_option('--bad_cigar', help='Allow malformed CIGAR strings (recommended for SNAP)', action='store_true', default=False)
 
@@ -32,14 +33,14 @@ nodup_bam = re.sub('.merged.bam$', '.nodup.bam', chrom_bam)
 dup_met = re.sub('.merged.bam$', '.dupmetrics', chrom_bam)
 realign_intervals = re.sub('.merged.bam$', '.realigner.intervals', chrom_bam)
 realigned_bam = re.sub('.merged.bam$', '.align.bam', chrom_bam)
-rec_file = re.sub('.merged.bam$', '.recal_data.csv', chrom_bam)
+rec_file = re.sub('.merged.bam$', '.recal_data.cov', chrom_bam)
 recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
 vcf = re.sub('.merged.bam$', '.vcf', chrom_bam)
 
 bwa_binary = '%s/bwa' % root
 samtools_binary = '%s/samtools' % root
 picard_binary = '%s/picard/MarkDuplicates.jar' % root
-gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 
 try:
   # Split by chromosome
@@ -69,12 +70,13 @@ try:
   open(nodup_bam, 'w').close()
   
   # 8. Count Covariates
-  command = 'java -Xmx6g -jar %s -T CountCovariates %s -L %s -R %s -I %s --knownSites %s --default_platform %s -recalFile %s' % (gatk_binary, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file)
+  #command = 'java -Xmx6g -jar %s -T CountCovariates %s -L %s -R %s -I %s --knownSites %s --default_platform %s -recalFile %s' % (gatk_binary, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file) # 1.6
+  command = 'java -Xmx6g -jar %s -T BaseRecalibrator %s -L %s -R %s -I %s --knownSites %s --default_platform %s -o %s --disable_indel_quals' % (gatk_binary, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file)
   command += ' -rf BadCigar' if options.bad_cigar else ''
   run_gatk_commands(command)
   
   # 9. Base Quality Score Recalibration
-  command = 'java -Xmx6g -jar %s -T TableRecalibration -L %s -R %s -I %s --out %s --default_platform %s -recalFile %s' % (gatk_binary, chromosome, ref, realigned_bam, recal_bam, platform, rec_file)
+  command = 'java -Xmx6g -jar %s -T PrintReads -L %s -R %s -I %s --out %s -BQSR %s' % (gatk_binary, chromosome, ref, realigned_bam, recal_bam, rec_file)
   command += ' -rf BadCigar' if options.bad_cigar else ''
   run_gatk_commands(command)
   open(realigned_bam, 'w').close()

@@ -5,6 +5,7 @@ import copy
 import shutil
 import re
 from collections import defaultdict
+import boto
 
 ref_paths = {
   'hg19' : '/data/hg19/hg19.fa',
@@ -13,7 +14,7 @@ dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-6daa1f04',
+  'hg19': 'ami-6545c30c',
   'hg19-himem' : 'ami-XXXXXXX'}
 instances = {
   'bwa' : 'm1.large',
@@ -82,6 +83,13 @@ access_key = %(access_key_id)s
 secret_key = %(secret_access_key)s
 ''' % (parameters))
     output_config.close()
+    
+    output_config = open('/root/.boto', 'w')
+    output_config.write('''[Credentials]
+aws_access_key_id = %(access_key_id)s
+aws_secret_access_key = %(secret_access_key)s
+''' % (parameters))
+    output_config.close()
 
 def check_files(parameters, dir, log):
     directory = 's3://%s/' % (parameters['s3_bucket'])
@@ -89,27 +97,33 @@ def check_files(parameters, dir, log):
     command = 'sudo s3cmd ls %s' % directory
     log.write(command + '\n')
     try:
-        file_info = subprocess.check_output(command.split()).strip().split('\n')
+        file_text = subprocess.check_output(command.split())
+        file_info = file_text.strip().split('\n')
     except subprocess.CalledProcessError, e:
         return None, None, None
     #log.write('\n'.join(file_info))
-    allowed_exts = ['.bam', '.fq', '.fastq', '.gz']
-    if len(file_info) == 0:
+    allowed_exts = ['.bam', '.fq', '.fastq']
+    if len(file_info) == 0 or file_text == '':
         return None, None, None
     files = [line.strip().split()[3] for line in file_info if not line.endswith('/')]
-    total_size = sum([int(line.strip().split()[2]) for line in file_info if not line.endswith('/')])
-    ext = os.path.splitext(files[0])[1]
-    if ext not in allowed_exts:
-        return None, None, None
-    command = 'sudo s3cmd get %s -'
-    command += ' | zcat | head -4' if ext == '.gz' else ' | head -4'
+    sizes = [int(line.strip().split()[2]) for line in file_info if not line.endswith('/')]
+    total_size = 0
     output_files = defaultdict(dict)
-    for file in files:
+    for i, file in enumerate(files):
+        ext = os.path.splitext(file)[1]
+        gzipped = ext == '.gz'
+        command = 'sudo s3cmd-noretry get %s - '
+        if gzipped:
+            ext = os.path.splitext(os.path.splitext(file)[0])[1]
+            command += '| zcat | head -4'
+        else:
+            command += '| head -4'
         if ext == '.bam':
             read = file
             output_files[read]['1'] = file
             output_files[read]['2'] = file
-        else:
+            total_size += sizes[i]*8
+        elif ext in allowed_exts:
             this_command = command % file
             #log.write(this_command + '\n')
             head_lines = commands.getoutput(this_command).split('\n')
@@ -119,8 +133,19 @@ def check_files(parameters, dir, log):
                 qc_fail('Malformed paired end file (read name should have /1 or /2 tag)')
             read, pair = first_line
             output_files[read][pair] = file
-    return (output_files, ext, total_size)
+            total_size += sizes[i]*8 if gzipped else sizes[i]*4
+    total_size = int(total_size/1E9) + 100
+    if len(output_files) == 0:
+        return None, None, None
+    else:
+        return (output_files, ext, total_size)
 
+def s3_signed_url(parameters, file_path):
+  s3conn = boto.connect_s3(parameters['access_key_id'], parameters['secret_access_key'])
+  bucket = s3conn.get_bucket(parameters['s3_bucket'], validate=False)
+  key = bucket.new_key(file_path)
+  signed_url = key.generate_url(expires_in=86400)
+  return signed_url
 
 def write_basic_config_file(parameters, sample):
     parameters['sample'] = sample
@@ -142,10 +167,9 @@ def replace_zone_in_config_file(zone, sample):
 def add_to_config_file(parameters, sample):
     parameters['sample'] = sample
     parameters['ami'] = amis[parameters['genome_version']]
-    parameters['instance_type'] = parameters['force_large_machine'] if parameters['force_large_machine'] != 'default' else instances[parameters['alignment_pipeline']]
-    bid = parameters['hi-mem-bid'] if parameters['instance_type'] == 'm2.4xlarge' else parameters['large-bid']
+    parameters['instance_type'] = instances[parameters['alignment_pipeline']]
     try:
-      parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(bid)
+      parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['spot_bid'])
     except ValueError:
       parameters['spot_request'] = ''
     
@@ -160,19 +184,42 @@ def add_volume_to_config_file(volume, sample):
     output_config.write(in_string % { 'volume': volume, 'sample': sample })
     output_config.close()
 
+def remove_volume_from_config_file(sample):
+    config = []
+    skip = False
+    with open('/root/.starcluster/config', 'r') as cnf:
+        for line in cnf:
+            if line.find('[') > -1:
+                skip = False
+            if line.find('[volume stormseq_%s]' % sample) > -1:
+                skip = True
+            if not skip and line.find('volumes = stormseq_%s' % sample) == -1:
+                config.append(line)
+    with open('/root/.starcluster/config', 'w') as cnf:
+      cnf.write(''.join(config))
+    
 # Later on
-def put_file_in_s3(sample, fname, bucket, hold):
-    upload_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
+def put_file_in_s3(sample, ext, bucket, hold, cluster=False):
     current_date = time.strftime("%Y%m%d", time.gmtime())
-    bucket_file = re.sub(sample, sample + '_stormseq_%s' % current_date, fname)
-    args = "'qsub -hold_jid %s -q all.q@master,all.q@node001 -cwd -b y s3cmd -c /mydata/.s3cfg put /mydata/%s s3://%s/%s'" % (hold, fname, bucket, bucket_file)
-    upload_command.append(args)
+    bucket_file = '%s_stormseq_%s.%s' % (sample, current_date, ext)
+    #args = "'qsub -hold_jid %s -q all.q@master,all.q@node001 -cwd -b y s3cmd -v -c /mydata/.s3cfg put /mydata/%s s3://%s/%s'" % (hold, fname, bucket, bucket_file)
+    
+    upload_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
+    args = "qsub -hold_jid %s -q all.q@master,all.q@node001 -cwd -b y s3-mp-upload.py -n 8 /mydata/%s.%s s3://%s/%s" % (hold, sample, ext, bucket, bucket_file)
+    if cluster:
+      upload_command = args.split()
+    else:
+      upload_command.append("'" + args + "'")
+      
     stdout = subprocess.check_output(upload_command, stderr=subprocess.PIPE)
     job = get_job_id(stdout)
 
     upload_command = ("sudo starcluster sshmaster stormseq_%s" % sample).split(' ')
-    args = "'qsub -hold_jid %s -cwd -b y touch /mydata/%s'" % (job, fname)
-    upload_command.append(args)
+    args = "qsub -hold_jid %s -cwd -b y touch /mydata/%s.%s.done" % (job, sample, ext)
+    if cluster:
+      upload_command = args.split()
+    else:
+      upload_command.append("'" + args + "'")
     stdout = subprocess.check_output(upload_command, stderr=subprocess.PIPE)
     job = get_job_id(stdout)
     return (job, bucket_file)

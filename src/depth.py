@@ -16,7 +16,7 @@ parser.add_option('--gene_list', default=None)
 
 (options, args) = parser.parse_args()
 
-gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 other_options = '--omitDepthOutputAtEachBase --omitLocusTable'
 other_options += '' if options.gene_list is None else ' --calculateCoverageOverGenes %s' % options.gene_list
 other_options += '' if options.intervals is None else ' -L %s' % options.intervals

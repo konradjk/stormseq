@@ -26,6 +26,9 @@ for sample_name in samples:
     response[sample_name]['completed'] = True
     continue
   
+  if sample_name == 'call_all_samples' and open('/var/www/stormseq_%s.cnf' % sample_name).read() == '':
+    response[sample_name] = None
+  
   check_command = ("sudo starcluster sshmaster stormseq_%s" % sample_name).split(' ')
   check_command.append("'ls -1 /mydata/'")
   try:

@@ -36,9 +36,10 @@ f.write('Samples: ' + ' '.join(samples) + '\n')
 
 def start_sample(index, sample):
   f.write('Sample %s: %s\n' % (index, sample))
+  # TODO: put in check for bucket name
   files, ext, all_file_size = check_files(parameters, sample, f)
   home_dir = False
-  if files is None and len(samples) == 0:
+  if files is None:
     files, ext, all_file_size = check_files(parameters, None, f)
     home_dir = True
   if files is None:
@@ -91,50 +92,68 @@ def start_sample(index, sample):
   f.write(stdout + '\n')
   
   # Create volume for NFS share
-  if ext == '.bam':
-    size = min(1000, 200)
-  elif ext == '.gz':
-    pass
-  else:
-    pass
-  size = 200
+  size = min(1000, all_file_size)
   while True:
+    f.write('Trying zone %s\n' % zone)
+    f.flush()
     try:
-      create_volume_command = "sudo starcluster createvolume --shutdown-volume-host --name=stormseq_%s %s %s" % (sample, size, zone)
-      stdout = subprocess.check_output(create_volume_command.split(), stderr=subprocess.STDOUT)
+      while True:
+        try:
+          create_volume_command = "sudo starcluster createvolume --shutdown-volume-host --name=stormseq_%s %s %s" % (sample, size, zone)
+          stdout = subprocess.check_output(create_volume_command.split(), stderr=subprocess.STDOUT)
+          break
+        except subprocess.CalledProcessError, e:
+          f.write('Volume error: ' + str(e.output) + '\n')
+          if e.output.find('The requested Availability Zone is currently constrained') == -1:
+            generic_response('Failed to create volume. Error: %s' % e.output)
+          raise
+      
+      f.write('Successfully created volume in %s\n' % zone)
+      check_volume_command = "sudo starcluster lv --name=stormseq_%s" % sample
+      stdout = subprocess.check_output(check_volume_command.split())
+      if stdout.find('volume_id') == -1:
+        generic_response('Failed to create volume')
+      volume_id = [line.split()[1] for line in stdout.split('\n') if line.find('volume_id') > -1][0]
+      add_volume_to_config_file(volume_id, sample)
+      while stdout.find('available') == -1:
+        time.sleep(5)
+        stdout = subprocess.check_output(check_volume_command.split())
+      f.write('Successfully found volume in %s\n' % zone)
+      
+      # Start cluster
+      start_command = 'sudo timelimit -T 1 -t 1200 starcluster start --force-spot-master --cluster-template=stormseq_%s stormseq_%s' % (sample, sample)
+      f.write(start_command + '\n')
+      started = False
+      for i in range(3):
+        try:
+          stdout = subprocess.check_output(start_command.split(), stderr=subprocess.STDOUT)
+          f.write(stdout + '\n')
+          f.flush()
+          if stdout.find('The cluster is now ready to use.') == -1:
+            kill_cmd = 'starcluster terminate -c stormseq_%s' % (sample)
+            subprocess.check_output(kill_cmd.split())
+            continue
+          started = True
+          break
+        except subprocess.CalledProcessError, e:
+          f.write('Starting error (%s): %s\n' % (i, e.output))
+          raise
+      if not started:
+        cluster_fail('Something went wrong starting the cluster')
       break
     except subprocess.CalledProcessError, e:
-      f.write(str(e.output) + '\n')
+      f.write('Tried zone %s and failed\n' % zone)
+      f.write('Error: ' + str(e.output) + '\n')
       if e.output.find('The requested Availability Zone is currently constrained') > -1:
         zones.pop(index % len(zones))
         samples_per_zone.pop(index % len(zones))
         zone = zones[index % len(zones)]
         replace_zone_in_config_file(zone, sample)
-      else:
-        generic_response('Failed to create volume. Error: %s' % e.output)
-  
-  check_volume_command = "sudo starcluster lv --name=stormseq_%s" % sample
-  stdout = subprocess.check_output(check_volume_command.split())
-  if stdout.find('volume_id') == -1:
-    generic_response('Failed to create volume')
-  volume_id = [line.split()[1] for line in stdout.split('\n') if line.find('volume_id') > -1][0]
-  add_volume_to_config_file(volume_id, sample)
-  while stdout.find('available') == -1:
-    time.sleep(5)
-    stdout = subprocess.check_output(check_volume_command.split())
-
-  # Start cluster
-  start_command = 'sudo starcluster start --force-spot-master --cluster-template=stormseq_%s stormseq_%s' % (sample, sample)
-  stdout = subprocess.check_output(start_command.split(), stderr=subprocess.STDOUT)
-  f.write(stdout + '\n')
-  f.flush()
-  if stdout.find('The cluster is now ready to use.') == -1:
-    cluster_fail('Something went wrong starting the cluster')
-  
+        remove_volume_from_config_file(sample)
+    
   config_file = 'stormseq_%s.cnf' % sample
   with open(config_file, 'w') as cnf:
     cnf.write(json.dumps({ 'files' : files, 'parameters' : parameters, 'sample' : sample }))
-  #stdout = commands.getoutput('sudo starcluster put stormseq_%s /root/*.py /root/' % sample)
   put_conf_file_command = 'sudo starcluster put stormseq_%s %s /mydata/' % (sample, config_file)
   tries = 0
   while True:

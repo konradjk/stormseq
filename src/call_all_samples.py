@@ -68,7 +68,7 @@ if inputs['program'] == 'gatk':
     except ValueError:
         inputs['stand_emit_conf'] = "30.0"
     call_qsub += ' --stand_call_conf=%(stand_call_conf)s --stand_emit_conf=%(stand_emit_conf)s'
-    call_qsub += ' --call_all_dbsnp' if parameters['call-all-dbsnp'] else ''
+    call_qsub += ' --output_gvcf' if parameters['output_gvcf'] else ''
 
 if parameters['data_type'] == 'type_exome_illumina':
   inputs['intervals'] = '--intervals=/data/intervals/Illumina_TruSeq.50bp.interval_list'
@@ -92,4 +92,12 @@ exit_status, stdout = commands.getstatusoutput(vcf_merge_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')
 
+put_file_in_s3('stormseq_all_samples', 'vcf', parameters['s3_bucket'], job, True)
 
+vcf_stats_command = "qsub -hold_jid %s -b y -q all.q@master,all.q@node001 -cwd -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/stormseq_all_samples.vcf --output=/mydata/stormseq_all_samples.vcf.eval" % (job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']])
+f.write(vcf_stats_command)
+exit_status, stdout = commands.getstatusoutput(vcf_stats_command)
+job = get_job_id(stdout)
+f.write(stdout + '\n')
+
+put_file_in_s3('stormseq_all_samples', 'vcf.eval', parameters['s3_bucket'], job, True)

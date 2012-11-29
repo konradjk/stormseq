@@ -12,12 +12,23 @@ import string
 form = cgi.FieldStorage()
 parameters = json.loads(form.getvalue('all_objects'))
 
-samples = [re.sub('^stormseq_', '', os.path.splitext(os.path.basename(file))[0]) for file in glob.glob('/var/www/stormseq_*.cnf')]
+files = glob.glob('/var/www/stormseq_*.cnf')
+samples = [re.sub('^stormseq_', '', os.path.splitext(os.path.basename(file))[0]) for file in files]
 
 f = open("/tmp/cancel_log.txt","w")
 f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
 f.flush()
 f.close()
+
+if len(files) == 0:
+  generic_response('nothing-to-cancel')
+else:
+  with open(files[0]) as f:
+    input = json.loads(f.readline())
+    existing_params = input['parameters']
+
+if existing_params['access_key_id'] != parameters['access_key_id'] or existing_params['secret_access_key'] != parameters['secret_access_key']:
+  generic_response('wrong-creds')
 
 exit_status_sum = 0
 for sample in samples:

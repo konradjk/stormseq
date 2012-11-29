@@ -16,6 +16,14 @@ $(document).ready(function(){
             }
         );
     });
+    $('#confirm_cancel_button').click(function() {
+      $("#cancel-box").dialog(
+          { modal: true, width: "40%", resizable: false, buttons: {
+            "Close": function() {$(this).dialog("close");}
+          }}
+        );
+    });
+    
     $('#cancel_button').click(function() {
         $('#run-status').empty();
         $.post("cancel_pipeline.cgi", { all_objects: JSON.stringify(get_all_data()) },
@@ -25,7 +33,12 @@ $(document).ready(function(){
         );
     });
     $("#amazon-request-types").buttonset();
-    $("#force-machine-type").buttonset();
+    $('#amazon-request-types').on('change', function() {
+      setTimeout(function() {
+        $('.instance-type-descriptions').hide();
+        $('#' + $('#amazon-request-types input:checked').val() + '-description').show();
+      }, 20);
+    });
     $("#advanced_settings").accordion({
             collapsible: true,
             active: false,
@@ -40,6 +53,14 @@ $(document).ready(function(){
         select: function(event, options) {
             $('#map-advanced-links > div').hide();
             $('#' + options.value + '-advanced-link').show();
+            if (options.value == 'bwa') {
+                $('.instance-type-text').text('Large');
+                $('#instance-type-on-demand-price').text('0.26');
+            } else if (options.value == 'snap') {
+                $('.instance-type-text').text('High memory');
+                $('#instance-type-on-demand-price').text('1.80');
+            }
+            refresh_spot_prices();
         }
     });
     $('#calling-pipeline').selectmenu({
@@ -113,10 +134,12 @@ function show_progress_chart(sample) {
 }
 function get_sample_progress_string(sample, response_data) {
   if (sample == 'call_all_samples') {
-    if (response_data['completed'] == true) {
-      return "Done calling all samples together!"
+    if (response_data == null) {
+      return "Waiting for samples to finish...";
+    } else if (response_data['completed'] == true) {
+      return "Done calling all samples together!";
     } else {
-      return "Calling all samples together..."
+      return "Calling all samples together...";
     }
   }
   if (response_data['completed'] == true) {
@@ -131,7 +154,7 @@ function get_sample_progress_string(sample, response_data) {
       if (response_data['outputs']['vcf'] == 0) {
         return "Mapped and cleaned. Calling variants..."
       } else {
-        return "Done mapping, cleaning, and calling!"
+        return "Wrapping up analyses..."
       }
     }
   }
@@ -156,11 +179,16 @@ function setup_charts(all_responses) {
     $('#start_button').button("option","disabled",true);
   }
   $('#all-progress-charts').empty();
+  $('#all-progress-charts-hidden').empty();
   all_response_data = JSON.parse(all_responses);
   $.each(all_response_data, function(sample, response_data) {
     var sample_progress = get_sample_progress_string(sample, response_data);
     if (Object.keys(all_response_data).length > 1) {
       $('#all-progress-charts').append("<span class='qtip-link' id='progress-header-" + sample + "'" +"><b>" + sample + "</b>: " + sample_progress + "</span><br/>");
+      var qtip_style = 'qtip-progress';
+      if (sample == 'call_all_samples') {
+        qtip_style = 'qtip-progress-short';
+      }
       if (sample_progress.indexOf('Done') != 0) {
         $("#all-progress-charts-hidden").append("<div class='hidden' id='progress-charts-" + sample + "'" + "'></div>");
         $("#progress-header-" + sample).qtip({
@@ -173,7 +201,7 @@ function setup_charts(all_responses) {
             fixed: true, // Helps to prevent the tooltip from hiding ocassionally when tracking!
             delay: 240
           },
-          style: 'qtip-progress'
+          style: qtip_style
         });
       }
     } else {
@@ -185,7 +213,7 @@ function setup_charts(all_responses) {
     $("#progress-charts-" + sample).append("<span id='progress-chart-" + sample + "'></span><span id='progress-chart-2-" + sample + "'></span><br/>");
   });
   $.each(all_response_data, function(sample, response_data) {
-    if (response_data['completed'] == true) {
+    if (response_data != null && response_data['completed'] == true) {
       return true;
     }
     if (sample != 'call_all_samples') {
@@ -362,7 +390,7 @@ function update_map_charts(all_responses){
   }
   all_response_data = JSON.parse(all_responses);
   $.each(all_response_data, function(sample, response_data) {
-    if (response_data['completed'] == true) {
+    if (response_data == null || response_data['completed'] == true) {
       return true;
     }
     if (sample == 'call_all_samples') {
@@ -596,12 +624,13 @@ function get_all_data() {
         calling_pipeline: $('#calling-pipeline').val(),
         sample_names: $('#sample_name').val().split('\n'),
         s3_bucket: $('#results-bucket').val(),
+        spot_bid: $('#spot_bid').val(),
         data_type: $('#data-type').val(),
         request_type: $('#amazon-request-types input:checked').val(),
-        force_large_machine: $('#force-machine-type input:checked').val(),
         indel_calling: $('#call_indels')[0].checked,
         sv_calling: $('#call_svs')[0].checked,
         joint_calling: $('#joint_calling')[0].checked,
+        output_gvcf: $('#output_gvcf')[0].checked,
         delete_s3: $('#delete_s3')[0].checked
     };
     $.extend(output, get_values_from_textarea($('#alignment-pipeline').val()));
@@ -624,27 +653,44 @@ function mapping_handle_response(response) {
 }
 
 function cancel_handle_response(response) {
+    $("#cancel-box").dialog('close');
     $('#run-status').empty();
+    $('#cancel-response-box').empty();
+    $('#cancel-response-box').dialog(
+      { modal: true, width: "40%", resizable: false, buttons: {
+        "Close": function() {$(this).dialog("close");}
+      }}
+    );
     if (response == 'success') {
-        $('#run-status').append('Your jobs have been canceled.');
-        click_refresh_progress();
+        $('#run-status').append('Your jobs have been cancelled.');
+        $('#start_button').button("option","disabled",false);
+        $('#cancel-response-box').append('Success! Your jobs have been cancelled!');
+        $('#cancel-response-box').append('<br/><br/>If you are finished with STORMSeq, please go to the <a href="https://console.aws.amazon.com/ec2" target="_blank">EC2 console</a> and terminate this running instance (and any others that may still remain)');
     } else if (response == 'success_and_deleted') {
+        $('#start_button').button("option","disabled",false);
         $('#run-status').append('Your jobs have been canceled and your S3 bucket deleted.');
-        click_refresh_progress();
+        $('#cancel-response-box').append('Success! Your jobs have been cancelled and your S3 bucket deleted!');
+        $('#cancel-response-box').append('<br/><br/>If you are finished with STORMSeq, please go to the EC2 console and terminate this running instance (and any others that may still remain)');
+    } else if (response == 'wrong-creds') {
+        $('#cancel-response-box').append('You have entered incorrect credentials (Access Key ID and Secret Access Key) to stop this server. They must match those given when the cluster was started.');        
+        $('#cancel-response-box').append('<br/><br/>The computer used to start these jobs may still have the credentials stored in a cookie. Alternatively, please check and re-enter your credentials from the <a href="https://portal.aws.amazon.com/gp/aws/securityCredentials" target="_blank">Amazon AWS credentials page</a>.');        
+        $('#cancel-response-box').append('<br/><br/>Is this your cluster and it is still not cancelling? You may have to manually terminate all the running instances on the <a href="https://console.aws.amazon.com/ec2" target="_blank">EC2 console</a>.');
     } else {
         $('#run-status').append('There was an error: ' + response);
     }
 }
 
 function refresh_spot_prices() {
-    $('#large-current-price').html('Loading... <img src="images/busy.gif" />');
-    $('#hi-mem-current-price').html('Loading... <img src="images/busy.gif" />');
+    $('#current-spot-price').html('Loading... <img src="images/busy.gif" />');
     
     $.post("get_current_prices.cgi", { all_objects: JSON.stringify(get_all_data()) },
         function(response){
             prices = response.split(',');
-            $('#large-current-price').html(prices[0]);
-            $('#hi-mem-current-price').html(prices[1]);
+            if ($('.instance-type-text')[0].innerText == 'Large'){
+              $('#current-spot-price').html(prices[0]);
+            } else {
+              $('#current-spot-price').html(prices[1]);
+            }
         }
     );
 }

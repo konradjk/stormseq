@@ -1,8 +1,9 @@
 import sys
 import os
 import subprocess
+import json
 from optparse import OptionParser
-import commands
+import commands, subprocess
 from multiprocessing import Process
 from helpers import *
 
@@ -16,8 +17,13 @@ parser.add_option('--platform', help='Platform', default='Illumina')
 parser.add_option('--sample', help='Sample', default='Me')
 parser.add_option('--quality', help='Quality', default='20')
 parser.add_option('--output', help='Output directory')
+parser.add_option('--config_file', help='Config File (JSON)')
 
 (options, args) = parser.parse_args()
+
+with open(options.config_file) as f:
+  input = json.loads(f.readline())
+parameters = input['parameters']
 
 # Get files from S3
 s3_fq1 = options.fq1
@@ -43,20 +49,48 @@ sorted_bam = options.output + file_root + '.sorted.bam'
 sorted_bam_prefix = options.output + file_root + '.sorted'
 
 if s3_fq1 == s3_fq2:
-  command = "s3cmd -c /mydata/.s3cfg get %s -" % (s3_fq1)
+  temp_bam = fq1
+  #command = "s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, temp_bam)
+  for i in range(3):
+    command = 'timelimit -t 86400 -T 1 aria2c -V -s16 -x16 -d /mnt/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq1.split('/')[3:])))
+    stat, stdout = commands.getstatusoutput(command)
+    print stat, stdout
+    if not stat:
+      break
+  temp_bam_sorted = fq1 + '.sorted'
+  #sort_command = '%s sort -no -@ 8 -m 6G %s %s' % (samtools_mt_binary, temp_bam, temp_bam_sorted)
+  sort_command = '%s sort -n -m 35000000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
+  print sort_command
+  for i in range(3):
+    print "Attempt: %s" % i
+    stat, stdout = commands.getstatusoutput(sort_command)
+    print stat, stdout
+    if not stat:
+      break
+  open(temp_bam, 'w').close()
+  temp_bam_sorted += '.bam'
   fq1 += '.fq'
   fq2 += '.fq'
-  convert = 'java -Xmx6g -jar %s I=/dev/stdin F=%s F2=%s' % (picard_convert_binary, fq1, fq2)
-  stdout = commands.getoutput(command + ' | ' + convert)
+  convert = 'java -Xmx6g -jar %s I=%s F=%s F2=%s' % (picard_convert_binary, temp_bam_sorted, fq1, fq2)
+  stdout = commands.getoutput(convert)
+  open(temp_bam_sorted, 'w').close()
+  print stdout
 else:
-  get1 = Process(target=commands.getstatusoutput, args=("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq1, fq1), ))
-  get1.start()
-  
-  get2 = Process(target=commands.getstatusoutput, args=("s3cmd -c /mydata/.s3cfg get %s %s" % (s3_fq2, fq2), ))
-  get2.start()
-  
-  get1.join()
-  get2.join()
+  for i in range(3):
+    get_command1 = 'timelimit -t 86400 -T 1 aria2c -s8 -x8 -d /mnt/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq1.split('/')[3:])))
+    print get_command1
+    
+    stat, stdout = commands.getstatusoutput(get_command1)
+    print stat, stdout
+    if not stat:
+      break
+    
+  for i in range(3):
+    get_command2 = 'timelimit -t 86400 -T 1 aria2c -s8 -x8 -d /mnt2/ "%s"' % (s3_signed_url(parameters, '/'.join(s3_fq2.split('/')[3:])))
+    stat, stdout = commands.getstatusoutput(get_command2)
+    print stat, stdout
+    if not stat:
+      break
 
 rg_format = "\'@RG\\tID:%s\\tSM:%s\\tPL:%s\\tLB:%s\'" % (file_root, sample, platform, sample)
 

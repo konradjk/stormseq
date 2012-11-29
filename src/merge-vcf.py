@@ -16,7 +16,7 @@ parser.add_option('--reference', help='Reference')
 
 input = ' '.join(["--variant %s_%s.vcf" % (options.output.replace('.vcf', ''), chr) for chr in options.priority.split(',')])
 
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 
 gatk_command = 'java -Xmx4g -jar %s -T CombineVariants -R %s %s -o %s --genotypemergeoption PRIORITIZE --assumeIdenticalSamples' % (gatk_binary, options.reference, input, options.output)
 exit_status, stdout = commands.getstatusoutput(gatk_command)

@@ -17,7 +17,7 @@ parser.add_option('--intervals', default=None)
 
 (options, args) = parser.parse_args()
 
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
+gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 vcftools_binary = '%s/vcftools' % root
 
 sample = os.path.splitext(os.path.basename(options.input))[0]
