@@ -68,12 +68,19 @@ try:
           f.write(str(e) + '\n')
           f.flush()
           time.sleep(120)
+          for i in range(3):
+            try:
+              nodes_command = "sudo timelimit -t 1800 -T 1 starcluster terminate -c stormseq_%s" % (sample)
+              f.write(nodes_command + '\n')
+              output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+              f.write(output + '\n')
+              f.flush()
+              break
+            except Exception, e:
+              f.write('Failed to terminate cluster... Waiting 30 minutes and trying again...\n')
+              f.flush()
+              time.sleep(1800)
           try:
-            nodes_command = "sudo timelimit -t 1800 -T 1 starcluster terminate -c stormseq_%s" % (sample)
-            f.write(nodes_command + '\n')
-            output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
-            f.write(output + '\n')
-            f.flush()
             nodes_command = "sudo timelimit -t 1800 -T 1 starcluster start -s %s --force-spot-master --cluster-template=stormseq_%s stormseq_%s" % (nodes_needed, sample, sample)
             f.write(nodes_command + '\n')
             output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)

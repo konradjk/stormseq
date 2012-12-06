@@ -41,10 +41,10 @@ for read_pair in files.keys():
             quality = int(parameters['bwa-opt-q'])
         except ValueError:
             quality = 20
-        map_command = "qsub -b y -cwd -l h_vmem=6G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
+        map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
     elif parameters['alignment_pipeline'] == 'snap':
         ref_dir = os.path.join(os.path.dirname(ref), 'snap/')
-        map_command = "qsub -b y -cwd -l h_vmem=60G python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
+        map_command = "qsub -b y -cwd -R y -l h_vmem=60G python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
     f.write(map_command + '\n')
     stdout = commands.getoutput(map_command)
     f.write(stdout + '\n')

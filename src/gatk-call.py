@@ -34,39 +34,24 @@ gatk_options = '-stand_call_conf %s -stand_emit_conf %s' % (options.stand_call_c
 recal_bam = '-I ' + re.sub('.merged.bam$', '_%s.recal.bam' % chromosome, options.bam)
 vcf = re.sub('.merged.bam$', '_%s.vcf' % chromosome, options.bam)
 
-def run_gatk_commands(command):
-  command += '' if options.intervals is None else ' -L %s' % options.intervals
-  command += '' if options.intervals is None or command.find('--interval_set_rule INTERSECTION') > -1 else ' --interval_set_rule INTERSECTION'
-  print command
-  exit_status, stdout = commands.getstatusoutput(command)
-  print exit_status, stdout
-  
-def run_ug_commands(command):
-  command += ' --genotype_likelihoods_model BOTH' if options.indels else ''
-  run_gatk_commands(command)
-
 try:
   if options.output_gvcf:
-    #raw_vcf = vcf.replace('.vcf', '.raw.vcf')
-    #command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, raw_vcf, dbsnp, gatk_options)
-    #run_ug_commands(command)
-    #
-    #orig_dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.all.vcf')
-    #command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper --dbsnp %s --output_mode EMIT_ALL_SITES --interval_set_rule INTERSECTION -L %s -L %s -R %s %s -o %s %s' % (gatk_binary, dbsnp, dbsnp_chr, chromosome, ref, recal_bam, orig_dbsnp_vcf, gatk_options)
-    #command += ' --genotyping_mode GENOTYPE_GIVEN_ALLELES --alleles %s' % dbsnp_chr
-    command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper --dbsnp %s --output_mode EMIT_ALL_SITES -L %s -R %s %s %s | gatk_to_gvcf > %s' % (gatk_binary, dbsnp, chromosome, ref, recal_bam, gatk_options, vcf)
-    run_ug_commands(command)
-    
-    #dbsnp_vcf = vcf.replace('.vcf', '.dbsnp.vcf')
-    #command = 'grep -vP "\.\/\." %s > %s' % (orig_dbsnp_vcf, dbsnp_vcf)
-    #exit_status, stdout = commands.getstatusoutput(command)
-    #print exit_status, stdout
-    #
-    #command = 'java -Xmx6500m -jar %s -T CombineVariants -R %s --variant:raw %s --variant:db %s -o %s -priority raw,db --genotypemergeoption UNSORTED --assumeIdenticalSamples' % (gatk_binary, options.reference, raw_vcf, dbsnp_vcf, vcf)
-    #run_gatk_commands(command)
+    command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper --dbsnp %s --output_mode EMIT_ALL_SITES -L %s -R %s %s %s' % (gatk_binary, dbsnp, chromosome, ref, recal_bam, gatk_options)
+    command += ' --genotype_likelihoods_model BOTH' if options.indels else ''
+    command += '' if options.intervals is None else ' -L %s' % options.intervals
+    command += '' if options.intervals is None or command.find('--interval_set_rule INTERSECTION') > -1 else ' --interval_set_rule INTERSECTION'
+    command += ' | gatk_to_gvcf > %s' % (vcf)
+    print command
+    exit_status, stdout = commands.getstatusoutput(command)
+    print exit_status, stdout
   else:
     command = 'java -Xmx6500m -jar %s -T UnifiedGenotyper -L %s -R %s %s -o %s --dbsnp %s %s' % (gatk_binary, chromosome, ref, recal_bam, vcf, dbsnp, gatk_options)
-    run_ug_commands(command)
+    command += ' --genotype_likelihoods_model BOTH' if options.indels else ''
+    command += '' if options.intervals is None else ' -L %s' % options.intervals
+    command += '' if options.intervals is None or command.find('--interval_set_rule INTERSECTION') > -1 else ' --interval_set_rule INTERSECTION'
+    print command
+    exit_status, stdout = commands.getstatusoutput(command)
+    print exit_status, stdout
   
   exit_status, stdout = commands.getstatusoutput('touch %s.done' % (vcf))
   print exit_status, stdout
