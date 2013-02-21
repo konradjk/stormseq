@@ -24,7 +24,11 @@ f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in p
 f.flush()
 
 setup_s3cfg(parameters)
-samples = parameters['sample_names']
+if parameters['number_of_genomes'] == 'multiple_individuals':
+  samples = set(parameters['sample_names'])
+  if '' in samples: samples.remove('')
+else:
+  samples = [parameters['sample_name']]
 
 write_basic_config_file(parameters, '')
 get_zones_command = "sudo starcluster lz"
@@ -34,14 +38,9 @@ samples_per_zone = [max(1, len(samples)/len(zones) + int(len(samples) % len(zone
 
 f.write('Samples: ' + ' '.join(samples) + '\n')
 
-def start_sample(index, sample):
-  f.write('Sample %s: %s\n' % (index, sample))
-  # TODO: put in check for bucket name
-  files, ext, all_file_size = check_files(parameters, sample, f)
-  home_dir = False
-  if files is None:
-    files, ext, all_file_size = check_files(parameters, None, f)
-    home_dir = True
+def start_sample(index, sample, dir=None):
+  f.write('Sample %s: %s (directory: %s)\n' % (index, sample, dir))
+  files, ext, all_file_size = check_files(parameters, dir, f)
   if files is None:
     file_error('%s not found' % sample)
   f.write('\n'.join(files) + '\n')
@@ -181,16 +180,14 @@ def start_sample(index, sample):
   f.write('%s\n' % p.pid)
 
 all_start_pipelines = []
-for index, sample in enumerate(samples):
-  start_sample(index, sample)
-#  job = Process(target=start_sample, args=(index, sample))
-#  job.start()
-#  all_start_pipelines.append(job)
-#[job.join() for job in all_start_pipelines]
-
-if parameters['joint_calling'] and len(samples) > 1:
-  p = subprocess.Popen(['python', '/var/www/joint_calling.py', json.dumps(parameters)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-  f.write('%s\n' % p.pid)
+if parameters['number_of_genomes'] == 'multiple_individuals':
+  for index, sample in enumerate(samples):
+    start_sample(index, sample, sample)
+  if parameters['joint_calling']:
+    p = subprocess.Popen(['python', '/var/www/joint_calling.py', json.dumps(parameters)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+    f.write('%s\n' % p.pid)
+else:
+  start_sample(0, sample)
 
 f.close()
 print 'Content-Type: text/html'

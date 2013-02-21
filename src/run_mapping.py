@@ -34,23 +34,31 @@ ref = ref_paths[parameters['genome_version']]
 all_mapping_jobs = []
 all_sorted_bams = []
 for read_pair in files.keys():
-    s3_fq1 = files[read_pair]['1']
-    s3_fq2 = files[read_pair]['2']
-    if parameters['alignment_pipeline'] == 'bwa':
-        try:
-            quality = int(parameters['bwa-opt-q'])
-        except ValueError:
-            quality = 20
-        map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
-    elif parameters['alignment_pipeline'] == 'snap':
-        ref_dir = os.path.join(os.path.dirname(ref), 'snap/')
-        map_command = "qsub -b y -cwd -R y -l h_vmem=60G python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
-    f.write(map_command + '\n')
-    stdout = commands.getoutput(map_command)
-    f.write(stdout + '\n')
-    job = get_job_id(stdout)
-    all_mapping_jobs.append(job)
-    all_sorted_bams.append(os.path.join('/mydata/', os.path.basename(s3_fq1) + '.sorted.bam'))
+  s3_fq1 = files[read_pair]['1']
+  s3_fq2 = files[read_pair]['2']
+  if parameters['alignment_pipeline'] == 'bwa':
+    try:
+      quality = int(parameters['bwa_opt_q'])
+    except ValueError:
+      quality = 20
+    map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
+  elif parameters['alignment_pipeline'] == 'snap':
+    ref_dir = os.path.join(os.path.dirname(ref), 'snap/')
+    try:
+      d = int(parameters['snap_opt_d'])
+    except ValueError:
+      d = 15
+    try:
+      h = int(parameters['snap_opt_h'])
+    except ValueError:
+      h = 250
+    map_command = "qsub -b y -cwd -R y -l h_vmem=60G python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
+  f.write(map_command + '\n')
+  stdout = commands.getoutput(map_command)
+  f.write(stdout + '\n')
+  job = get_job_id(stdout)
+  all_mapping_jobs.append(job)
+  all_sorted_bams.append(os.path.join('/mydata/', os.path.basename(s3_fq1) + '.sorted.bam'))
 
 merged_bam = sample + '.merged.bam'
 merge_command = "qsub -hold_jid %s -b y -cwd python merge.py --delete --bams=%s --output=/mydata/%s" % (','.join(all_mapping_jobs), ','.join(all_sorted_bams), merged_bam)

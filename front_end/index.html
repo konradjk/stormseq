@@ -1,129 +1,106 @@
-<html>
-
-<head>
-
-<script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
-<script type="text/javascript" src='js/jquery-ui-1.8.21.custom.min.js'></script>
-
-<script src="js/jquery.ui.core.js"></script>
-<script src="js/jquery.ui.widget.js"></script>
-<script src="js/jquery.ui.position.js"></script>
-<script src="js/jquery.ui.selectmenu.js"></script>
-<script type="text/javascript" src="js/stormseq.js"></script>
-<script type="text/javascript" src="js/jquery.qtip.min.js"></script>
-<script type="text/javascript" src="js/d3.v2.min.js"></script>
-<script type="text/javascript" src="js/jquery.autosave.pack.js"></script>
-<script type="text/javascript" src="js/jquery.cookie.js"></script>
-
-<script type="text/javascript" src="https://www.google.com/jsapi"></script>
-<script type="text/javascript">
-google.load("visualization", "1", {packages:["corechart"]});
-</script>
-
-<link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />
-<link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />
-<link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />
-<link rel="stylesheet" href="css/stormseq.css" />
-<link type="text/css" rel="stylesheet" href="css/jquery.qtip.css" />
-
-<style type="text/css">
-  #results_container{ display:none; }
-  #no_results_container{ display:none; }
-</style>
-
-
-</head>
-<body>
-  <div id="page">
-      <div id="header">
-          <h1>STORMSeq</h1>
-          <h3>Scalable Tools for Open-source Read Mapping</h3>
-      </div>
+<!DOCTYPE html>
+<html lang='en'>
+  <head>
+    <meta charset="utf-8">
+    <title>STORMSeq Webserver</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="">
+    <meta name="author" content="">
       
-      <div id="step1" class="easy-box">
-          <h3>Upload your data</h3>
-          <div id='startup-instructions'>
-              <p>
-                  Create an S3 bucket as described on the <a href="http://www.stormseq.org/use.html" target='_blank'>STORMSeq page</a> and upload your files.
-              </p>
-              <p>
-                  <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
-                  This will be used to start additional machines based on the options you have selected and the number of files you upload.
-                  It will not be shared with any third party.'>
-                  Enter your AWS Account Number:
-                  </span><textarea id='aws-account-number' rows='1' cols='14'></textarea>
-              </p>
-              <p>
-                  <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
-                  This will be used to start additional machines based on the options you have selected and the number of files you upload.
-                  It will not be shared with any third party.'>
-                  Enter your Access Key ID: 
-                  </span><textarea id='access-key-id' rows='1' cols='21'></textarea>
-              </p>
-              <p>
-                  <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
-                  This will be used to start additional machines based on the options you have selected and the number of files you upload.
-                  It will not be shared with any third party.'>
-                  Enter your Secret Access Key:
-                  </span><textarea id='secret-access-key' rows='1' cols='40'></textarea>
-              </p>
-              <p>
-                  <span class='qtip-link' qtip-content='This can be any S3 bucket owned by you.
-                  STORMSeq will look for your raw data in this bucket and then store the results here.'>
-                  Enter the Amazon S3 bucket where your data are stored:
-                  </span>
-                  <textarea id='results-bucket' rows='1' cols='30'></textarea>
-              </p>
-              <!--<div id='amazon-advanced-link'>-->
-              <!--    <span class='link' onclick='$("#amazon-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {-->
-              <!--      "Close": function() {$(this).dialog("close");}-->
-              <!--    }});'>Amazon EC2 Advanced Options</span>-->
-              <!--    <br/><br/>-->
-              <!--</div>-->
-              <!--<h3>Advanced options for Amazon EC2:</h3>-->
-              <!--<div id="force-machine-type">-->
-              <!--    <input type="radio" id="default" value='default' name="force-machine-type" checked="checked" /><label for="default" class='qtip-link'-->
-              <!--    qtip-content='Default'>Default</label>-->
-              <!--    <input type="radio" id="m2.4xlarge" value='m2.4xlarge' name="force-machine-type" /><label for="m2.4xlarge" class='qtip-link'-->
-              <!--    qtip-content='High-memory'>High-memory</label>-->
-                  <!--<input type="radio" id="cc2.8xlarge" value='cc2.8xlarge' name="force-machine-type" /><label for="cc2.8xlarge" class='qtip-link'-->
-                  <!--qtip-content=''>High-memory, High-CPU (fastest, most-expensive)</label>-->
-              <!--</div>-->
-              <!--<br/>-->
-              <p>
-                <span class='qtip-link' qtip-content='<b>On-demand</b> is a standard Amazon instance.
-                    These instances have fixed prices, which are typically more expensive than spot instances.
-                    However, they are guaranteed server time and are guaranteed not to quit before finishing the jobs.
-                    <br/>
-                    <b>Spot requests</b> allow you to bid for Amazon compute time and are typically quite cheaper than On-Demand instances.
-                    You can bid by entering a bid price below (the current bid price is shown, and more detailed history is available on the AWS website).
-                    Note that if during processing time, the current bid price goes above your bid, the jobs may fail.
-                    STORMSeq is not responsible for failed jobs due to spot request bids, and we recommend setting a bid price somewhat higher than the current price.'>
-                  Request type:</span>
-                <span id="amazon-request-types">
-                    <input type="radio" id="normal" value='normal' name="amazon-request-types" checked="checked" /><label for="normal">On-Demand</label>
-                    <input type="radio" id="spot" value='spot' name="amazon-request-types" /><label for="spot">Spot Request</label>
-                </span>
-              </p>
+    <link rel="stylesheet" href="css/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/bootstrap-responsive.min.css" />
+    <link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />
+    <link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />
+    <link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />
+    <link rel="stylesheet" href="css/stormseq.css" />
+    <link type="text/css" rel="stylesheet" href="css/jquery.qtip.css" />
+    
+    <script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
+    <!--<script type="text/javascript" src='js/jquery-ui-1.8.21.custom.min.js'></script>-->
+    <style>
+      body {
+        padding: 20px 40px 40px 40px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div class="page-header">
+        <h1>STORMSeq</h1>
+        <h3>Scalable Tools for Open-source Read Mapping</h3>
+      </div>
+    
+<div class='accordion' id="all_tabs">
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" href="#start_tab">Setup</a>
+    </div>
+    <div id='start_tab' class='accordion-body collapse in'>
+      <div class="accordion-inner">
+        <div class="row-fluid">
+          <div class="span4">
+            <div class='well easy-box'>
+              <h4>Load your data</h4>
+              Create an S3 bucket as described on the <a href="http://www.stormseq.org/use.html" target='_blank'>STORMSeq page</a> and upload your files.
+              <br/><br/>
+              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              This will be used to start additional machines based on the options you have selected and the number of files you upload.
+              It will not be shared with any third party.'>
+              AWS Account Number:
+              </span>&nbsp; <input id='aws_account_number' class='input-medium opts'></input>
+              <br/>
+              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              This will be used to start additional machines based on the options you have selected and the number of files you upload.
+              It will not be shared with any third party.'>
+              Access Key ID: 
+              </span>&nbsp; <input id='access_key_id' class='input-medium opts'></input>
+              <br/>
+              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              This will be used to start additional machines based on the options you have selected and the number of files you upload.
+              It will not be shared with any third party.'>
+              Secret Access Key:
+              </span> &nbsp; <input id='secret_access_key' class='opts'></input>
+              <br/>
+              <span class='qtip-link' qtip-content='This can be any S3 bucket owned by you.
+              STORMSeq will look for your raw data in this bucket and then store the results here.'>
+              Amazon S3 bucket:
+              </span> &nbsp; <input id='s3_bucket' class='input-medium opts'></input>
+              <br/>
+              <span class='qtip-link' qtip-content='<b>On-demand</b> is a standard Amazon instance.
+                These instances have fixed prices, which are typically more expensive than spot instances.
+                However, they are guaranteed server time and are guaranteed not to quit before finishing the jobs.
+                <br/>
+                <b>Spot requests</b> allow you to bid for Amazon compute time and are typically quite cheaper than On-Demand instances.
+                You can bid by entering a bid price below (the current bid price is shown, and more detailed history is available on the AWS website).
+                Note that if during processing time, the current bid price goes above your bid, the jobs may fail.
+                STORMSeq is not responsible for failed jobs due to spot request bids, and we recommend setting a bid price somewhat higher than the current price.'>
+                Request type:
+              </span> &nbsp;
+              <div class="btn-group" data-toggle="buttons-radio" id="amazon-request-types">
+                <a name='normal' value='normal' class="btn btn-primary active">On-Demand</a>
+                <a name='spot' value='spot' class="btn btn-primary">Spot Request</a>
+              </div>
+              <br/><br/>
               <span id='instance-type-description'>
-                <span id='normal-description' class='instance-type-descriptions'>
-                  <b>Hourly price of <span class='instance-type-text'>Large</span> instances as of 12/1/12: $<span id='instance-type-on-demand-price'>0.26</span></b>
+                <span id='normal-description'>
+                  <b>Hourly price of <span class='instance-type-text'>Large</span> instances as of 3/1/13: $<span id='instance-type-on-demand-price'>0.24</span></b>
                 </span>
-                <span id='spot-description' class='instance-type-descriptions' style='display: none;'>
-                  <span class='instance-type-text'>Large</span> instance bid: $<textarea id='spot_bid' rows='1' cols='5'>0.10</textarea>
-                  <br/><b>30 day spot history:</b>
-                  <div id='current-spot-price'></div>
+                <span id='spot-description' class='hide'>
+                  <span class='instance-type-text'>Large</span> instance bid: $<input id='spot_bid' class='input-mini opts'></input>
+                  <br/>
+                  <b>30 day spot history:</b><br/>
+                  <span id='current-spot-price'></span>
+                  <br/>
                   If price history is not displayed, please enter your Access Key ID and Secret Access Key
                   and click <span class='link' onclick='refresh_spot_prices();'>here</span>.
                 </span>
               </span>
+            </div>
           </div>
-          <span id="report1"></span>
-      </div>
-      
-      <div id="step2" class="easy-box disabled">
-          <h3>Set your parameters</h3>
-          <p>
+          
+          <div class="span4">
+            <div class='well easy-box'>
+              <h4>Set your parameters</h4>
               <span class='qtip-link' qtip-content='Select type of data analysis to optimize data output.
               In whole genome sequence, all regions of the genome will be output.
               For exome sequencing, output will be restricted to particular intervals (faster).
@@ -131,212 +108,299 @@ google.load("visualization", "1", {packages:["corechart"]});
               Upload your own in standard intervals format (as allowed by the GATK) named as a *.interval_list file.'>
               Data type:
               </span> &nbsp;
-              <select id='data-type' align='right' style='display: inline; float: right'>
-                  <option value='type_wgs'>Whole Genome Sequence</option>
-                  <option value='type_exome_illumina'>Illumina TruSeq Exome</option>
-                  <option value='type_exome_custom'>Upload your own intervals file (coming soon!)</option>
+              <select id='data_type' class='input-xlarge opts'>
+                <option value='type_wgs'>Whole Genome Sequence</option>
+                <option value='type_exome_illumina'>Illumina TruSeq Exome</option>
+                <option value='type_exome_custom'>Upload your own intervals file (coming soon!)</option>
               </select>
-          </p>
-          <p>
-              <span class='maybe-qtip-link' qtip-content='If only one sample is uploaded (in the default directory), this sample name will be used for processing in the output file.'>
-              Name your sample:</span> <textarea id='sample_name' rows='1' cols='15'>Me</textarea>
-          </p>
-          <p>
-              Genome version:
-              <select id='genome-version' align='right' style='display: inline; float: right'>
-                  <option value='hg19'>hg19</option>
-                  <option value='ceu-ref'>CEU reference (hg19; Coming soon!)</option>
-              </select>
-          </p>
-          
-          
-          <p>
-              dbSNP version:
-              <select id='dbsnp-version'>
-                  <option value='dbsnp135'>dbSNP 135</option>
-                  <option value='dbsnp132'>dbSNP 132</option>
-              </select>
-          </p>
-          <p>
-              Alignment:
-              <select id='alignment-pipeline'>
-                  <option value='bwa'>BWA</option>
-                  <option value='snap'>SNAP</option>
-                  <option value='novo'>Novoalign (coming soon!)</option>
-              </select>
-          </p>
-          <p>
-              Cleaning Pipeline: GATK
-          </p>
-          <p>
-              SNP Calling:
-              <select id='calling-pipeline'>
-                  <option value='gatk'>GATK</option>
-                  <option value='samtools'>Samtools (coming soon!)</option>
-              </select>
-          </p>
-          <p>
-              <input type="checkbox" id="call_indels" name="call_indels" checked />
-              <label for="call_indels">Indel Calling</label>
-              <input type="checkbox" id="call_svs" name="call_svs" checked />
-              <label for="call_svs">SV Calling (Coming soon!)</label>
-          </p>
-          <p>
-              <input type="checkbox" id="joint_calling" name="joint_calling" checked />
-              <label for="joint_calling">Joint Variant Calling Across Samples</label>
-          </p>
-          <p>
-            <input type="checkbox" id="output_gvcf" name="output_gvcf" checked />
-            <label for="output_gvcf">Output gVCF (Coming soon!; recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>)</label>
-          </p>
-          <div id="advanced_settings">
-              <h3><a href="#">Advanced settings</a></h3>
-              <div id='advanced-links'>
-                  <div id='map-advanced-links'>
-                      <div id='bwa-advanced-link' >
-                          <span class='link' onclick='$("#bwa-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {
-                            "Close": function() {$(this).dialog("close");}
-                          }});'>BWA Advanced Options</span>
-                          <br/><br/>
-                      </div>
-                      <div id='snap-advanced-link' class='hidden'>
-                          <span class='link' onclick='$("#snap-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {
-                            "Close": function() {$(this).dialog("close");}
-                          }});'>SNAP Advanced Options</span>
-                          <br/><br/>
-                      </div>
-                  </div>
-                  <div id='clean-advanced-links' >
-                      <span class='link' onclick='$("#gatk-clean-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {
-                        "Close": function() {$(this).dialog("close");}
-                      }});'>GATK Clean Advanced Options</span>
-                      <br/><br/>
-                  </div>
-                  <div id='call-advanced-links'>
-                      <div id='gatk-advanced-link' >
-                          <span class='link' onclick='$("#gatk-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {
-                            "Close": function() {$(this).dialog("close");}
-                          }});'>GATK Advanced Options</span>
-                          <br/><br/>
-                      </div>
-                      <div id='samtools-advanced-link' class='hidden'>
-                          <span class='link' onclick='$("#samtools-advanced").dialog({ modal: true, width: "40%", resizable: false, buttons: {
-                            "Close": function() {$(this).dialog("close");}
-                          }});'>Samtools Advanced Options</span>
-                          <br/><br/>
-                      </div>
-                  </div>
+              <br/>
+              Number of genomes:
+              <div class="btn-group" data-toggle="buttons-radio" id='number_of_genomes'>
+                <a id='single_individual' value='single_individual' class="btn btn-primary active">One</a>
+                <a id='multiple_individuals' href="#sample_names_modal" data-toggle="modal" value='multiple_individuals' class="btn btn-primary">Multiple</a>
               </div>
-          </div>
-      </div>
-      <div id='bwa-advanced' class='dialog hidden'>
-          <h3>Advanced options for BWA:</h3>
-          <span class='qtip-link' qtip-content='This is the bwa aln -q flag, which will be passed directly to BWA.
-           This parameter will trim a read from the end until it encounters a maximum number of bases with Phred quality score below this threshold.
-           See the BWA manual pages for more information.'>
-          -q flag:</span> <textarea id='bwa-opt-q' rows='1' cols='5'>20</textarea>
-      </div>
-      <div id='snap-advanced' class='dialog hidden'>
-          <h3>Advanced options for SNAP:</h3>
-          <span class='qtip-link' qtip-content='This is the SNAP -d flag, which will be passed directly to SNAP.
-           It is the maximum edit distance that SNAP will ever tolerate between a read and a candidate match in the reference genome.
-           See the SNAP manual pages for more information.'>
-          -d flag:</span> <textarea id='snap-opt-d' rows='1' cols='5'>15</textarea>
-          <br/>
-          <span class='qtip-link' qtip-content='This is the SNAP -h flag, which will be passed directly to SNAP.
-           It is the threshold at which SNAP will ignore seeds with more hits than this parameter.
-           See the SNAP manual pages for more information.'>
-          -h flag:</span> <textarea id='snap-opt-h' rows='1' cols='5'>250</textarea>
-      </div>
-      <div id='gatk-clean-advanced' class='dialog hidden'>
-          <h3>Advanced options for GATK Cleaning:</h3>
-          <h4>Covariates for Base Quality Recalibration:</h4>
-              <input type="checkbox" id="ReadGroupCovariate" name="ReadGroupCovariate" disabled='true' checked />
-              <label for="ReadGroupCovariate">Read Group Covariate (default)</label>
               <br/>
-              <input type="checkbox" id="QualityScoreCovariate" name="QualityScoreCovariate" disabled='true' checked />
-              <label for="QualityScoreCovariate">Quality Score Covariate (default)</label>
+              <div id='genome_name'>
+                <span class='maybe-qtip-link' qtip-content='If only one sample is uploaded (in the default directory), this sample name will be used for processing in the output file.'>
+                  Name your genome:
+                </span> <input id='sample_name' class='input-medium opts'></input>
+              </div>
+              <div id='multiple_genome_names' class='hide'>
+                <span class='link' href="#sample_names_modal" data-toggle="modal">Select genomes</span>
+              </div>
+              
+              <div id='sample_names_modal' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Multiple Samples</h3>
+                </div>
+                <div class="modal-body">
+                  Please select the names of the genomes you wish to align.
+                  These correspond exactly to directories in your S3 bucket.
+                  Click <span class='link' onclick='refresh_sample_names()'>here</span> to refresh.
+                  <br/><br/>
+                  <div id='sample_name_selects'>
+                    <div id='sample_span_1'>
+                      Sample 1: <select id='sample_1' class='input-large multi_sample all_samples'>
+                      <option value=''></option>
+                      </select><br/>
+                    </div>
+                  </div>
+                  <a name='add_sample' class='btn btn-primary' onclick='add_sample();'>Add Sample</a>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+              
+              Genome version:
+              <select id='genome_version' class='input-medium opts'>
+                <option value='hg19'>hg19</option>
+                <option value='ceu_ref'>CEU reference (hg19; Coming soon!)</option>
+              </select>
               <br/>
-              <input type="checkbox" id="CycleCovariate" name="CycleCovariate" checked />
-              <label for="CycleCovariate">Cycle Covariate</label>
+              dbSNP version:
+              <select id='dbsnp_version' class='input-medium opts'>
+                <option value='dbsnp135'>dbSNP 135</option>
+                <option value='dbsnp132'>dbSNP 132</option>
+              </select>
               <br/>
-              <input type="checkbox" id="ContextCovariate" name="ContextCovariate" checked />
-              <label for="ContextCovariate">Context Covariate</label>
+              Alignment:
+              <select id='alignment_pipeline' class='input-medium opts'>
+                <option value='bwa'>BWA</option>
+                <option value='snap'>SNAP</option>
+                <option value='novo'>Novoalign (coming soon!)</option>
+              </select>
               <br/>
-      </div>
-      <div id='gatk-advanced' class='dialog hidden'>
-          <h3>Advanced options for GATK:</h3>
-          Standard min confidence threshold for calling: <textarea id='gatk-opt-std-call' rows='1' cols='8'>30.0</textarea>
-          <br/>
-          Standard min confidence threshold for emitting: <textarea id='gatk-opt-std-emit' rows='1' cols='8'>30.0</textarea>
-          <br/>
-      </div>
-      <div id='samtools-advanced' class='dialog hidden'>
-          <h3>Advanced options for Samtools:</h3>
-          -C flag: <textarea id='samtools-opt-c' rows='1' cols='5'>50</textarea>
-      </div>
-      <div id="step3" class="easy-box disabled">
-          <h3>Start processing</h3>
-          <p>
-              <button id='start_button' class='btn green' style='height:80px; font-size:5.0em;'>GO!</button>
-          </p>
-          <b>Note that by clicking "GO!", you are starting up Amazon instances and volumes that will be charged to your account.</b>
-          <br/>
-          The mapping and variant calling for a whole genome (30X coverage) is estimated at about $30.
-          For a full exome (50X coverage), the cost is estimated at about $2.
-          However, note that these estimates do not include storage (S3) and that processing times (and thus costs) may vary.
-          <br/>
-          <p>
-              <button id='confirm_cancel_button' class='btn red' style='height:40px; font-size:2.2em;'>Cancel</button>
-          </p>
-          <br/><br/>
-          <div id='run-status'></div>
-          <br/>
-      </div>
-      <div id='cancel-box' class='hidden dialog'>
-          <h3>Are you sure you want to cancel?</h3>
-          <p>
-          When you click "Cancel", all of your Amazon instances will be terminated.  Any jobs that are incomplete
-          will not be finished.  You will no longer be charged for compute time on EC2.
-          </p>
-          <p>
-          Check the box below if you additionally would like your S3 bucket deleted (you will lose all your uploaded data and any other data in that bucket).
-          <div id='cancel-advanced'>
-          <ul><li><input type="checkbox" id="delete_s3" name="delete_s3"/>
-              <label for="delete_s3">Delete my S3 bucket</label>
-          </ul>
+              Cleaning Pipeline: GATK
+              <br/>
+              SNP Calling:
+              <select id='calling_pipeline' class='input-medium opts'>
+                <option value='gatk'>GATK</option>
+                <option value='samtools'>Samtools (coming soon!)</option>
+              </select>
+              <br/>
+              <input type="checkbox" id="call_indels" name="call_indels" class='opts' checked /> Indel Calling
+              <br/>
+              <input type="checkbox" id="call_svs" name="call_svs" class='opts' checked /> SV Calling (Coming soon!)
+              <br/>
+              <input type="checkbox" id="joint_calling" name="joint_calling" class='opts' checked /> Joint Variant Calling Across Samples
+              <br/>
+              <input type="checkbox" id="output_gvcf" class='opts' name="output_gvcf" />
+              Output gVCF (Coming soon!<!--; recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>-->)
+              <br/><br/>
+              <div class='accordion' id="advanced_settings">
+                <div class="accordion-group">
+                  <div class="accordion-heading">
+                    <a class="accordion-toggle" data-toggle="collapse" data-parent="#advanced_settings" href="#advanced-links">Advanced settings</a>
+                  </div>
+                  <div id='advanced-links' class='accordion-body collapse'>
+                    <div class="accordion-inner">
+                      <div id='map-advanced-links'>
+                        <a id='bwa-advanced-link' href="#bwa-advanced" class="btn" data-toggle="modal">BWA Advanced Options</a>
+                        <a id='snap-advanced-link' href="#snap-advanced" class="btn" data-toggle="modal">SNAP Advanced Options</a>
+                      </div>
+                      <div id='clean-advanced-links'>
+                        <a id='gatk-clean-advanced-link' href="#gatk-clean-advanced" class="btn" data-toggle="modal">GATK Clean Advanced Options</a>
+                      </div>
+                      <div id='call-advanced-links'>
+                        <a id='gatk-advanced-link' href="#gatk-advanced" class="btn" data-toggle="modal">GATK Advanced Options</a>
+                        <a id='samtools-advanced-link' href="#samtools-advanced" class="btn" data-toggle="modal">Samtools Advanced Options</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div id='bwa-advanced' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Advanced options for BWA</h3>
+                </div>
+                <div class="modal-body">
+                  <span class='qtip-link' qtip-content='This is the bwa aln -q flag, which will be passed directly to BWA.
+                   This parameter will trim a read from the end until it encounters a maximum number of bases with Phred quality score below this threshold.
+                   See the BWA manual pages for more information.'>
+                  -q flag:</span> <input id='bwa_opt_q' class='input-mini opts' value="20"></input>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+              
+              <div id='snap-advanced' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Advanced options for SNAP</h3>
+                </div>
+                <div class="modal-body">
+                  <span class='qtip-link' qtip-content='This is the SNAP -d flag, which will be passed directly to SNAP.
+                   It is the maximum edit distance that SNAP will ever tolerate between a read and a candidate match in the reference genome.
+                   See the SNAP manual pages for more information.'>
+                  -d flag:</span> <input id='snap_opt_d' class='input-mini opts' value='15'></input>
+                  <br/>
+                  <span class='qtip-link' qtip-content='This is the SNAP -h flag, which will be passed directly to SNAP.
+                   It is the threshold at which SNAP will ignore seeds with more hits than this parameter.
+                   See the SNAP manual pages for more information.'>
+                  -h flag:</span> <input id='snap_opt_h' class='input-mini opts' value='250'></input>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+              
+              <div id='gatk-clean-advanced' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Advanced options for GATK Cleaning</h3>
+                </div>
+                <div class="modal-body">
+                  <h4>Covariates for Base Quality Recalibration</h4>
+                  <input type="checkbox" id="ReadGroupCovariate" class="opts" disabled='true' checked /> Read Group Covariate (default)
+                  <br/>
+                  <input type="checkbox" id="QualityScoreCovariate" class="opts" disabled='true' checked /> Quality Score Covariate (default)
+                  <br/>
+                  <input type="checkbox" id="CycleCovariate" class="opts" checked /> Cycle Covariate
+                  <br/>
+                  <input type="checkbox" id="ContextCovariate" class="opts" checked /> Context Covariate
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+              
+              <div id='gatk-advanced' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Advanced options for GATK</h3>
+                </div>
+                <div class="modal-body">
+                  Standard min confidence threshold for calling: <input id='gatk_opt_std_call' class='input-mini opts' value='30.0'></input>
+                  <br/>
+                  Standard min confidence threshold for emitting: <input id='gatk_opt_std_emit' class='input-mini opts' value='30.0'></input>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+              
+              <div id='samtools-advanced' class='modal hide fade'>
+                <div class="modal-header">
+                  <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                  <h3>Advanced options for Samtools</h3>
+                </div>
+                <div class="modal-body">
+                  -C flag: <input id='samtools_opt_c' class='input-mini opts' value='50'></input>
+                </div>
+                <div class="modal-footer">
+                  <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
+                </div>
+              </div>
+            </div>
           </div>
-          </p>
-          <p>
-              <button id='cancel_button' class='btn red' style='height:40px; font-size:2.2em;'>Cancel</button>
-          </p>
-      </div>
-      <div id='cancel-response-box' class='hidden dialog'></div>
-      <div id="progress">
-          <h3>Pipeline progress</h3>
-          <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.
-          For multiple samples, mouseover each sample name for details.<br/></small>
-          <div id='all-progress-charts'>
+          
+          <div class='span4'>
+            <div class="well easy-box">
+              <h4>Start processing</h4>
+              <a id='start_button' class='btn btn-success' style='width: 120px; padding: 24px 32px; font-size:3.0em'>GO!</a>
+              <br/><br/>
+              <b>Note that by clicking "GO!", you are starting up Amazon instances and volumes that will be charged to your account.</b>
+              <br/>
+              The mapping and variant calling for a whole genome (30X coverage) is estimated at about $30.
+              For a full exome (50X coverage), the cost is estimated at about $2.
+              However, note that these estimates do not include storage (S3) and that processing times (and thus costs) may vary.
+              <br/><br/>
+              <a id='cancel_button' class='btn btn-danger disabled' style='width: 120px; padding: 12px 18px; font-size:1.5em'>Cancel</a>
+            </div>
           </div>
-          <div id='all-progress-charts-hidden'>
+          <div id='cancel-box' class='modal hide fade'>
+            <h3>Are you sure you want to cancel?</h3>
+            <br/>
+            When you click "Cancel", all of your Amazon instances will be terminated.  Any jobs that are incomplete
+            will not be finished.  You will no longer be charged for compute time on EC2.
+            <br/>
+            Check the box below if you additionally would like your S3 bucket deleted (you will lose all your uploaded data and any other data in that bucket).
+            <div id='cancel-advanced'>
+              <ul>
+                <input type="checkbox" id="delete_s3" class="opts" /> Delete my S3 bucket
+              </ul>
+            </div>
           </div>
+        </div>
       </div>
-      
-      <div id="download">
+    </div>
+  </div>
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" href="#progress_tab">Progress</a>
+    </div>
+    <div id='progress_tab' class='accordion-body collapse in'>
+      <div class="accordion-inner">
+        <div class="row-fluid" id="progress">
+          <div class='span12 well'>
+            <h3>Pipeline progress</h3>
+            <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.
+            For multiple samples, mouseover each sample name for details.<br/></small>
+            <div id='all-progress-charts'>
+            </div>
+            <div id='all-progress-charts-hidden'>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" href="#download_tab">Download</a>
+    </div>
+    <div id='download_tab' class='accordion-body collapse in'>
+      <div class="accordion-inner">
+        <div class="row-fluid" id="download">
+          <div class='span12 well'>
           <h3>Download your results</h3>
           <div id='download-results'></div>
+          </div>
+        </div>
       </div>
-  
-      <div id="visualize">
+    </div>
+  </div>
+  <div class="accordion-group">
+    <div class="accordion-heading">
+      <a class="accordion-toggle" data-toggle="collapse" href="#visualize_tab">Visualize</a>
+    </div>
+    <div id='visualize_tab' class='accordion-body collapse in'>
+      <div class="accordion-inner">
+        <div class="row-fluid" id="visualize">
+          <div class='span12 well'>
           <h3>Visualize your results</h3>
           <small>Page will automatically refresh when results are available. Click <span class='link' onclick='refresh_vis();'>here</span> to refresh manually.<br/></small>
           <div id='visualize-results'></div>
-          <div id='chart_div' style="width: 900px; height: 500px;"></div>
+          <div id='chart_div' style="width: 900px; height: 500px; display: none;"></div>
+          </div>
+        </div>
       </div>
+      <button class="autosave_restore hidden">Restore form</button>
+    </div>
+  </div>
+</div>
   
-  </div>  
-  <button class="autosave_restore hidden">Restore form</button>
-
-</body>
+  </body>
+  
+  <script src='js/bootstrap.min.js'></script>
+  <script src="js/jquery.ui.core.js"></script>
+  <script src="js/jquery.ui.widget.js"></script>
+  <script src="js/jquery.ui.position.js"></script>
+  <script src="js/jquery.ui.selectmenu.js"></script>
+  <script type="text/javascript" src="js/stormseq.js"></script>
+  <script type="text/javascript" src="js/jquery.qtip.min.js"></script>
+  <script type="text/javascript" src="js/d3.v2.min.js"></script>
+  <script type="text/javascript" src="js/jquery.autosave.pack.js"></script>
+  <script type="text/javascript" src="js/jquery.cookie.js"></script>
+  
+  <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/javascript">
+  google.load("visualization", "1", {packages:["corechart"]});
+  </script>
 
 </html>

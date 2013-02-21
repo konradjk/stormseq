@@ -60,11 +60,11 @@ inputs['samples'] = ','.join(all_bams)
 
 if inputs['program'] == 'gatk':
     try:
-        inputs['stand_call_conf'] = float(parameters['gatk-opt-std-call'])
+        inputs['stand_call_conf'] = float(parameters['gatk_opt_std_call'])
     except ValueError:
         inputs['stand_call_conf'] = "30.0"
     try:
-        inputs['stand_emit_conf'] = float(parameters['gatk-opt-std-emit'])
+        inputs['stand_emit_conf'] = float(parameters['gatk_opt_std_emit'])
     except ValueError:
         inputs['stand_emit_conf'] = "30.0"
     call_qsub += ' --stand_call_conf=%(stand_call_conf)s --stand_emit_conf=%(stand_emit_conf)s'

@@ -44,55 +44,55 @@ try:
   
   if True:
    if total_nodes < nodes_needed:
-      nodes_to_add = nodes_needed - total_nodes
-      nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
+    nodes_to_add = nodes_needed - total_nodes
+    nodes_names_to_add = ','.join(['node%03d' % x for x in range(total_nodes, nodes_needed)])
+    try:
+      nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
+      f.write(nodes_command + '\n')
+      output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+      f.write(output + '\n')
+      f.flush()
+    except subprocess.CalledProcessError, e:
+      f.write(str(e) + '\n')
+      f.flush()
+      time.sleep(120)
       try:
-        nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
+        # Try adding nodes again
+        nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -x -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
         f.write(nodes_command + '\n')
         output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
         f.write(output + '\n')
         f.flush()
       except subprocess.CalledProcessError, e:
+        # Last ditch effort if add nodes fails
         f.write(str(e) + '\n')
         f.flush()
         time.sleep(120)
+        for i in range(3):
+          try:
+            nodes_command = "sudo timelimit -t 1800 -T 1 starcluster terminate -c stormseq_%s" % (sample)
+            f.write(nodes_command + '\n')
+            output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
+            f.write(output + '\n')
+            f.flush()
+            break
+          except Exception, e:
+            f.write('Failed to terminate cluster... Waiting 30 minutes and trying again...\n')
+            f.flush()
+            time.sleep(1800)
         try:
-          # Try adding nodes again
-          nodes_command = "sudo timelimit -t 1800 -T 1 starcluster an -x -n %s -a %s stormseq_%s" % (nodes_to_add, nodes_names_to_add, sample)
+          nodes_command = "sudo timelimit -t 1800 -T 1 starcluster start -s %s --force-spot-master --cluster-template=stormseq_%s stormseq_%s" % (nodes_needed, sample, sample)
           f.write(nodes_command + '\n')
           output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
           f.write(output + '\n')
           f.flush()
         except subprocess.CalledProcessError, e:
-          # Last ditch effort if add nodes fails
-          f.write(str(e) + '\n')
-          f.flush()
-          time.sleep(120)
-          for i in range(3):
-            try:
-              nodes_command = "sudo timelimit -t 1800 -T 1 starcluster terminate -c stormseq_%s" % (sample)
-              f.write(nodes_command + '\n')
-              output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
-              f.write(output + '\n')
-              f.flush()
-              break
-            except Exception, e:
-              f.write('Failed to terminate cluster... Waiting 30 minutes and trying again...\n')
-              f.flush()
-              time.sleep(1800)
-          try:
-            nodes_command = "sudo timelimit -t 1800 -T 1 starcluster start -s %s --force-spot-master --cluster-template=stormseq_%s stormseq_%s" % (nodes_needed, sample, sample)
-            f.write(nodes_command + '\n')
-            output = subprocess.check_output(nodes_command.split(' '), stderr=subprocess.PIPE)
-            f.write(output + '\n')
-            f.flush()
-          except subprocess.CalledProcessError, e:
-            f.write('Something went wrong with the cluster...\n')
-            sys.exit()
+          f.write('Something went wrong with the cluster...\n')
+          sys.exit()
    elif total_nodes > nodes_needed:
-      nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])
-      nodes_command = "sudo starcluster rn %s stormseq_%s" % (nodes_to_remove, sample)
-      exit_status = subprocess.call(nodes_command.split(' '), stdout=f)
+    nodes_to_remove = ' '.join(['node%03d' % x for x in range(nodes_needed + 1, total_nodes)])
+    nodes_command = "sudo starcluster rn %s stormseq_%s" % (nodes_to_remove, sample)
+    exit_status = subprocess.call(nodes_command.split(' '), stdout=f)
   
   clean_qsub = 'qsub -b y -cwd python clean.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --platform=%(platform)s --covariates=%(covariates)s --chromosome=%(chromosome)s %(intervals)s %(bad_cigar)s'
   call_qsub = 'qsub -hold_jid %(hold)s -b y -cwd python %(program)s-call.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --chromosome=%(chromosome)s %(intervals)s %(indels)s'
@@ -127,44 +127,44 @@ try:
       inputs['intervals'] = '--intervals=%s' % int_files[0]
   
   if inputs['program'] == 'gatk':
-      try:
-          inputs['stand_call_conf'] = float(parameters['gatk-opt-std-call'])
-      except ValueError:
-          inputs['stand_call_conf'] = "30.0"
-      try:
-          inputs['stand_emit_conf'] = float(parameters['gatk-opt-std-emit'])
-      except ValueError:
-          inputs['stand_emit_conf'] = "30.0"
-      call_qsub += ' --stand_call_conf=%(stand_call_conf)s --stand_emit_conf=%(stand_emit_conf)s'
-      call_qsub += ' --output_gvcf' if parameters['output_gvcf'] else ''
+    try:
+      inputs['stand_call_conf'] = float(parameters['gatk_opt_std_call'])
+    except ValueError:
+      inputs['stand_call_conf'] = "30.0"
+    try:
+      inputs['stand_emit_conf'] = float(parameters['gatk_opt_std_emit'])
+    except ValueError:
+      inputs['stand_emit_conf'] = "30.0"
+    call_qsub += ' --stand_call_conf=%(stand_call_conf)s --stand_emit_conf=%(stand_emit_conf)s'
+    call_qsub += ' --output_gvcf' if parameters['output_gvcf'] else ''
   
   all_clean_jobs = []
   all_call_jobs = []
   for chrom in chroms:
-      inputs['chromosome'] = chrom
-      
-      # Cleaning
-      chrom_job = copy.deepcopy(starcluster)
-      chrom_job.append("'" + clean_qsub % inputs + "'")
-      f.write(' '.join(chrom_job) + '\n')
-      stdout = subprocess.check_output(chrom_job)
-      job = get_job_id(stdout)
-      f.write(stdout + '\n')
-      all_clean_jobs.append(job)
-      inputs['hold'] = job
-      
-      # SNP and Indel calling
-      chrom_job = copy.deepcopy(starcluster)
-      chrom_job.append("'" + call_qsub % inputs + "'")
-      f.write(' '.join(chrom_job) + '\n')
-      stdout = subprocess.check_output(chrom_job)
-      job = get_job_id(stdout)
-      f.write(stdout + '\n')
-      all_call_jobs.append(job)
-      
-      # SV calling
-      if parameters['sv_calling']:
-        pass
+    inputs['chromosome'] = chrom
+    
+    # Cleaning
+    chrom_job = copy.deepcopy(starcluster)
+    chrom_job.append("'" + clean_qsub % inputs + "'")
+    f.write(' '.join(chrom_job) + '\n')
+    stdout = subprocess.check_output(chrom_job)
+    job = get_job_id(stdout)
+    f.write(stdout + '\n')
+    all_clean_jobs.append(job)
+    inputs['hold'] = job
+    
+    # SNP and Indel calling
+    chrom_job = copy.deepcopy(starcluster)
+    chrom_job.append("'" + call_qsub % inputs + "'")
+    f.write(' '.join(chrom_job) + '\n')
+    stdout = subprocess.check_output(chrom_job)
+    job = get_job_id(stdout)
+    f.write(stdout + '\n')
+    all_call_jobs.append(job)
+    
+    # SV calling
+    if parameters['sv_calling']:
+      pass
   
   priority = ','.join(chroms)
   all_bams = ','.join(['/mydata/' + parameters['sample_name'] + '_' + chrom + '.recal.bam' for chrom in chroms])
