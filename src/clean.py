@@ -4,8 +4,7 @@ import subprocess
 from optparse import OptionParser
 import commands
 import re
-
-root = '/usr/local/bin'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--bam', help='Input (sorted) BAM file')
@@ -36,11 +35,6 @@ realigned_bam = re.sub('.merged.bam$', '.align.bam', chrom_bam)
 rec_file = re.sub('.merged.bam$', '.recal_data.cov', chrom_bam)
 recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
 vcf = re.sub('.merged.bam$', '.vcf', chrom_bam)
-
-bwa_binary = '%s/bwa' % root
-samtools_binary = '%s/samtools' % root
-picard_binary = '%s/picard/MarkDuplicates.jar' % root
-gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 
 try:
   # Split by chromosome

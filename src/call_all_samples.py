@@ -10,7 +10,6 @@ import time
 import commands
 from helpers import *
 
-root = '/usr/local/bin/'
 parser = OptionParser()
 parser.add_option('--config_file', help='Config File (JSON)')
 

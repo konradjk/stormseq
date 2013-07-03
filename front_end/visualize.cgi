@@ -4,7 +4,7 @@ import os, glob, sys
 import gzip, re
 import json
 import commands, subprocess
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import cgitb; cgitb.enable()  # for troubleshooting
 from helpers import *
 
@@ -18,74 +18,88 @@ def check_file(file):
   return True
 
 def parse_bam_stats(sample_name, type):
-  print "<div class='%s-stats'><em>%s stats:</em><br/>" % (type, type.capitalize())
-  print "<a href='mydata/%s.%s.stats.insert_size_histogram.pdf' target='_blank'>%s BAM Insert Size Distribution</a><br/>" % (sample_name, type, type.capitalize())
-  print "<a href='mydata/%s.%s.stats.quality_by_cycle.pdf' target='_blank'>%s BAM Quality by Cycle</a><br/>" % (sample_name, type, type.capitalize())
-  print "<a href='mydata/%s.%s.stats.quality_distribution.pdf' target='_blank'>%s BAM Mapping Quality Distribution</a><br/>" % (sample_name, type, type.capitalize())
-  print "</div>"
-  #with "/var/www/mydata/%s.%s.stats.alignment_summary_metrics" % (sample_name, type) as stats_file:
-  #  pass
+  if check_file('%s.%s.stats.tar.gz' % (sample_name, type)):
+    stats = {
+      'Insert Size Distribution': 'mydata/%s.%s.stats.insert_size_histogram.pdf' % (sample_name, type),
+      'Quality by Cycle' : 'mydata/%s.%s.stats.quality_by_cycle.pdf' % (sample_name, type),
+      'Mapping Quality Distribution' : 'mydata/%s.%s.stats.quality_distribution.pdf' % (sample_name, type)
+    }
+    #with "/var/www/mydata/%s.%s.stats.alignment_summary_metrics" % (sample_name, type) as stats_file:
+    #  pass
+    return stats
 
 def parse_vcf_eval(file, parameters):
-  print "<em>SNP statistics:</em><br/>"
-  with open(file) as f:
-    raw_data = f.readlines()
-  variants = dict([(line.split()[4], line.split()[11]) for line in raw_data if line.startswith('CountVariants')])
-  try:
-    percent_novel = 100*float(variants['novel'])/float(variants['all'])
-    print 'Called %s SNPs, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (variants['all'], variants['novel'], percent_novel, parameters['dbsnp_version'])
-    titv = dict([(line.split()[4], line.split()[7]) for line in raw_data if line.startswith('TiTvVariantEvaluator')])
-    print 'Ti/Tv ratio: %s (%s for novel variants)<br/>' % (titv['all'], titv['novel'])
-  except ZeroDivisionError:
-    print 'No SNPs called<br/>'
+  if check_file(file):
+    with open(file) as f:
+      raw_data = f.readlines()
+    variants = dict([(line.split()[4], int(line.split()[11])) for line in raw_data if line.startswith('CountVariants') and line.find('Novelty') == -1])
+    titv = dict([(line.split()[4], float(line.split()[7])) for line in raw_data if line.startswith('TiTvVariantEvaluator') and line.find('Novelty') == -1])
+    return {
+      'variants': variants,
+      'titv': titv,
+      'dbsnp': parameters['dbsnp_version']
+    }
 
 def parse_indel_vcf_eval(file, parameters):
-  indels = {}
-  print "<em>Indel statistics:</em><br/>"
-  with open(file) as f:
-    raw_data = f.readlines()
-  insertions = dict([(line.split()[4], line.split()[13]) for line in raw_data if line.startswith('CountVariants')])
-  deletions = dict([(line.split()[4], line.split()[14]) for line in raw_data if line.startswith('CountVariants')])
-  total = dict([(type, int(insertions[type]) + int(deletions[type])) for type in ('all', 'novel', 'known')])
-  
-  try:
-    percent_novel = 100*float(total['novel'])/float(total['all'])
-    print 'Called %s indels, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (total['all'], total['novel'], percent_novel, parameters['dbsnp_version'])
-  except ZeroDivisionError:
-    print 'No indels called<br/>'
-    return
-  
-  try:
-    percent_novel = 100*float(insertions['novel'])/float(insertions['all'])
-    print 'Called %s insertions, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (insertions['all'], insertions['novel'], percent_novel, parameters['dbsnp_version'])
-  except ZeroDivisionError:
-    print 'No insertions called<br/>'
-  
-  try:
-    percent_novel = 100*float(deletions['novel'])/float(deletions['all'])
-    print 'Called %s deletions, out of which %s (%.2f%%) were novel (i.e. not found in %s)<br/>' % (deletions['all'], deletions['novel'], percent_novel, parameters['dbsnp_version'])
-  except ZeroDivisionError:
-    print 'No deletions called<br/>'
+  if check_file(file):
+    types = ('all', 'novel', 'known')
+    with open(file) as f:
+      raw_data = f.readlines()
+    insertions = dict([(line.split()[4], int(line.split()[13])) for line in raw_data if line.startswith('CountVariants') and line.find('Novelty') == -1])
+    deletions = dict([(line.split()[4], int(line.split()[14])) for line in raw_data if line.startswith('CountVariants') and line.find('Novelty') == -1])
+    total = dict([(type, int(insertions[type]) + int(deletions[type])) for type in types])
+    lengths = defaultdict(dict)
+    for line in raw_data:
+      if line.startswith('IndelLengthHistogram') and line.find('Novelty') == -1:
+        lengths[int(line.split()[5])][line.split()[4]] = float(line.split()[6])
+    output_lengths = []
+    for length in sorted(lengths.keys()):
+      output_lengths.append((length, [lengths[length][type] for type in types]))
+    return {
+      'insertions' : insertions,
+      'deletions' : deletions,
+      'total' : total,
+      'lengths' : output_lengths
+    }
 
-def parse_depth_files(depth_file):
-  filename = '%s.depth.sample_cumulative_coverage_proportions' % depth_file
-  with open(filename) as f:
-    headers = [int(x.replace('gte_', '')) for x in f.readline().strip().split()]
-    depths = map(float, f.readline().strip().split()[:-1])
-  zip(headers, depths)
+def parse_bam_depth(sample, type):
+  filename = '%s%s.depth.sample_statistics' % (sample, type)
+  if check_file(filename):
+    with open(filename) as f:
+      headers = [int(x.split('_')[1]) for x in f.readline().strip().split()[:-1]]
+      depths = map(int, f.readline().strip().split()[:-1])
+    return zip(headers, depths)
+
+def get_circos_plot(sample):
+  if check_file(sample + '_circos.pdf'):
+    return [sample + '_circos.png', sample + '_circos.pdf']
+
+def parse_annotation_summary(sample):
+  file = sample + '.vcf.annotation_summary'
+  if check_file(file):
+    with open(file) as f:
+      return json.loads(f.read())
 
 redirect_url = "/"
 
 f = open("/tmp/vis_log.txt","w")
-form = cgi.FieldStorage()
-sample_names = json.loads(form.getvalue('sample_names'))
+sample_names = [re.sub('^stormseq_', '', os.path.splitext(os.path.basename(file))[0]) for file in glob.glob('/var/www/stormseq_*.cnf')]
+sample_names.sort()
+if 'call_all_samples' in sample_names:
+  sample_names.remove('call_all_samples')
+  #samples.append('call_all_samples') #TODO
 
 if len(sample_names) == 0 or sample_names[0] == '':
   generic_response('')
 
 print 'Content-Type: text/html'
 print
+response = OrderedDict()
 for sample_name in sample_names:
+  finished = check_file('%s.done' % sample_name)
+  #if finished and check_file('%s.vis' % sample_name):
+  #  response[sample_name] = json.loads(open('%s.vis' % sample_name).read())
+  #  continue
   config_file = '/var/www/stormseq_%s.cnf' % sample_name
   try:
     with open(config_file) as cnf:
@@ -93,15 +107,26 @@ for sample_name in sample_names:
   except IOError:
     generic_response('nothing')
   parameters = input['parameters']
+  
+  sample_stats = {}
+  sample_stats['merged_stats'] = parse_bam_stats(sample_name, 'merged')
+  sample_stats['final_stats'] = parse_bam_stats(sample_name, 'final')
+  
+  sample_stats['merged_depth'] = parse_bam_depth(sample_name, '.merged')
+  sample_stats['final_depth'] = parse_bam_depth(sample_name, '')
+  
+  sample_stats['vcf_stats'] = parse_vcf_eval('%s.vcf.eval' % sample_name, parameters)
+  sample_stats['snp_density'] = get_circos_plot(sample_name)
+  sample_stats['annotation_summary'] = parse_annotation_summary(sample_name)
+  sample_stats['indel_stats'] = parse_indel_vcf_eval('%s.vcf.eval' % sample_name, parameters)
 
-  print "<h4>%s Results:</h4>" % (sample_name)
-  if check_file('%s.merged.stats.tar.gz' % sample_name):
-    parse_bam_stats(sample_name, 'merged')
-  if check_file('%s.final.stats.tar.gz' % sample_name):
-    parse_bam_stats(sample_name, 'final')
-  print "<div style='clear: both'></div><br/>"
-  if check_file('%s.vcf.eval' % sample_name):
-    parse_vcf_eval('%s.vcf.eval' % sample_name, parameters)
-    if parameters['indel_calling']:
-      parse_indel_vcf_eval('%s.vcf.eval' % sample_name, parameters)
+  sample_stats['finished'] = finished
+  
+  #if finished:
+  #  with open('%s.vis' % sample_name, 'w') as g:
+  #    g.write(json.dumps(sample_stats))
+  
+  response[sample_name] = sample_stats
 
+sys.stdout.write(json.dumps(response))
+sys.exit()

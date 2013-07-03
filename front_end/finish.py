@@ -17,14 +17,9 @@ try:
   f.write('Input is:\n%s\n' % '\n'.join(['%s:\t%s' % (x, parameters[x]) for x in parameters]))
   f.flush()
   
-  #put_conf_file_command = 'sudo starcluster put stormseq_%s /root/.boto /root/.boto' % (sample)
-  #stdout = commands.getoutput(put_conf_file_command)
-  #put_conf_file_command = 'sudo starcluster put stormseq_%s --node node001 /root/.boto /root/.boto' % (sample)
-  #stdout = commands.getoutput(put_conf_file_command)
   # Check for jobs being done
-  #files_to_get = ['mergef', 'mergefu', 'depth', 'mergevs', 'vcfstats']
-  #file_dict = dict(zip(files_to_get, len(files_to_get)*[False]))
-  #bam_upload_job = 0
+  files_to_get = ['mergef', 'depth', 'vcfstats', 'depm']
+  file_dict = dict(zip(files_to_get, len(files_to_get)*[False]))
   
   time.sleep(600)
   
@@ -54,55 +49,33 @@ try:
           f.write('Could not shut down %s\nError:%s\n' % (node, str(e)))
       nodes_removed = True
     
-    #all_jobs = [line.strip().split()[0] for line in qstat_stdout.split('\n') if line.find('root') > -1]
-    #if sum(file_dict.values()) == len(file_dict.keys()) and len(qstat_stdout.split('\n')) <= 5:
-    #    f.write('exiting with:\n%s\n' % qstat_stdout)
-    #    break
-    #      
-    #if not file_dict['mergef'] and qstat_stdout.find('mergef') == -1:
-    #    f.write(qstat_stdout + '\n')
-    #    f.write('found %s.final.bam\n' % sample)
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.final.bai', parameters['s3_bucket'], 1)
-    #    bam_upload_job, bucket_file = put_file_in_s3(sample, sample + '.final.bam', parameters['s3_bucket'], 1)
-    #    f.write('put submitted (job %s)\n' % bam_upload_job)
-    #    touch_file(sample, bam_upload_job, sample + '.final.bam.done', f)
-    #    f.write('touched\n')
-    #    
-    #    f.write('getting %s.final.stats.tar.gz\n' % sample)
-    #    get_stats_file(sample, sample + '.final.stats.tar.gz', f)
-    #    f.write('putting file in s3\n')
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.final.stats.tar.gz', parameters['s3_bucket'], 1)
-    #    touch_file(sample, job, sample + '.final.stats.tar.gz.done', f)
-    #    
-    #    file_dict['mergef'] = True
-    #    
-    #if not file_dict['depth'] and qstat_stdout.find('depth') == -1:
-    #    f.write(qstat_stdout + '\n')
-    #    f.write('found %s.depth\n' % sample)
-    #    get_stats_file(sample, sample + '.depth.tar.gz', f)
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.depth.tar.gz', parameters['s3_bucket'], 1)
-    #    touch_file(sample, job, sample + '.depth.tar.gz.done', f)
-    #    
-    #    file_dict['depth'] = True
-    #    
-    #if not file_dict['mergevs'] and qstat_stdout.find('mergevs') == -1:
-    #    f.write(qstat_stdout + '\n')
-    #    f.write('found %s.vcf\n' % sample)
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.vcf', parameters['s3_bucket'], 1)
-    #    touch_file(sample, job, sample + '.vcf.done', f)
-    #    
-    #    file_dict['mergevs'] = True
-    #    
-    #if not file_dict['vcfstats'] and qstat_stdout.find('vcfstats') == -1:
-    #    f.write(qstat_stdout + '\n')
-    #    f.write('found %s.vcf.eval\n' % sample)
-    #    get_stats_file(sample, sample + '.vcf.eval', f)
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.vcf.eval', parameters['s3_bucket'], 1)
-    #    get_stats_file(sample, sample + '.vcf.snpden', f)
-    #    job, bucket_file = put_file_in_s3(sample, sample + '.vcf.snpden', parameters['s3_bucket'], 1)
-    #    touch_file(sample, job, sample + '.vcf.eval.done', f)
-    #    
-    #    file_dict['vcfstats'] = True
+    if not file_dict['mergef'] and qstat_stdout.find('mergef') == -1:
+      f.write('getting %s.final.stats.tar.gz\n' % sample)
+      get_stats_file(sample, sample + '.final.stats.tar.gz', f)
+      touch_file(sample, 1, sample + '.final.stats.tar.gz.done', f)
+      file_dict['mergef'] = True
+    
+    if not file_dict['depth'] and qstat_stdout.find('depth') == -1:
+      f.write('found %s.depth\n' % sample)
+      get_stats_file(sample, sample + '.depth.tar.gz', f)
+      touch_file(sample, 1, sample + '.depth.tar.gz.done', f)
+      file_dict['depth'] = True
+    
+    if not file_dict['depm'] and qstat_stdout.find('depm') == -1:
+      f.write('found %s.merged.depth\n' % sample)
+      get_stats_file(sample, sample + '.merged.depth.tar.gz', f)
+      touch_file(sample, 1, sample + '.merged.depth.tar.gz.done', f)
+      file_dict['depm'] = True
+        
+    if not file_dict['vcfstats'] and qstat_stdout.find('vcfstats') == -1:
+      f.write(qstat_stdout + '\n')
+      f.write('found %s.vcf.eval\n' % sample)
+      get_stats_file(sample, sample + '.vcf.eval', f)
+      get_stats_file(sample, sample + '_circos.png', f)
+      get_stats_file(sample, sample + '_circos.pdf', f)
+      get_stats_file(sample, sample + '.vcf.annotation_summary', f)
+      touch_file(sample, 1, sample + '.vcf.eval.done', f)
+      file_dict['vcfstats'] = True
   
   f.write('Found all files\n')
   commands.getstatusoutput('sudo touch /var/www/%s.done' % sample)
@@ -124,4 +97,5 @@ try:
 
 except Exception, e:
   f.write('Error: %s\n' % e)
+  f.flush()
   sys.exit()

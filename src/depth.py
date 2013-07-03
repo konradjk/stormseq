@@ -4,8 +4,7 @@ import subprocess
 from optparse import OptionParser
 import commands
 from multiprocessing import Process
-
-root = '/usr/local/bin'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--input', help='BAM file')
@@ -16,7 +15,6 @@ parser.add_option('--gene_list', default=None)
 
 (options, args) = parser.parse_args()
 
-gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
 other_options = '--omitDepthOutputAtEachBase --omitLocusTable'
 other_options += '' if options.gene_list is None else ' --calculateCoverageOverGenes %s' % options.gene_list
 other_options += '' if options.intervals is None else ' -L %s' % options.intervals

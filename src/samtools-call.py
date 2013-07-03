@@ -4,8 +4,7 @@ import subprocess
 from optparse import OptionParser
 import commands
 import re
-
-root = '/usr/local/bin'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--bam', help='Input (cleaned) BAM file')
@@ -30,8 +29,6 @@ recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
 vcf = re.sub('.merged.bam$', '', chrom_bam)
 vcf += '.indel.vcf' if options.indels else '.vcf'
 dbsnp_chr = dbsnp.replace('.vcf', '_%s.vcf' % chromosome)
-
-gatk_binary = '%s/gatk/GenomeAnalysisTK.jar' % root
 
 def run_gatk_commands(command):
   command += '' if options.intervals is None else ' -L %s' % options.intervals

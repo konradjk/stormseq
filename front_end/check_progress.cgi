@@ -11,13 +11,13 @@ from helpers import *
 redirect_url = "/"
 
 f = open("/tmp/checking_log.txt","w")
-form = cgi.FieldStorage()
 samples = [re.sub('^stormseq_', '', os.path.splitext(os.path.basename(file))[0]) for file in glob.glob('/var/www/stormseq_*.cnf')]
 samples.sort()
 if 'call_all_samples' in samples:
   samples.remove('call_all_samples')
   samples.append('call_all_samples')
 
+full_response = {}
 response = OrderedDict()
 for sample_name in samples:
   f.write(sample_name + '\n')
@@ -45,6 +45,7 @@ for sample_name in samples:
   
   with open('/var/www/stormseq_%s.cnf' % sample_name) as cnf:
     input = json.loads(cnf.readline())
+    full_response['alignment_pipeline'] = input['parameters']['alignment_pipeline']
   
   if sample_name == 'call_all_samples':
     calls = {}
@@ -96,8 +97,10 @@ if len(response) == 0:
   generic_response('not-running')
 
 f.close()
-  
+
+full_response['samples'] = response
+
 print 'Content-Type: text/html'
 print
-sys.stdout.write(json.dumps(response))
+sys.stdout.write(json.dumps(full_response))
 sys.exit()

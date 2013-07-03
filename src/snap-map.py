@@ -8,8 +8,6 @@ import commands, subprocess
 from multiprocessing import Process
 from helpers import *
 
-root = '/usr/local/bin'
-
 parser = OptionParser()
 parser.add_option('--fq1', help='FASTQ file, pair 1')
 parser.add_option('--fq2', help='FASTQ file, pair 2')
@@ -35,12 +33,6 @@ ref = options.reference
 platform = options.platform
 sample = options.sample
 threads = options.threads
-
-snap_binary = '%s/snap' % root
-samtools_binary = '%s/samtools' % root
-samtools_mt_binary = '%s/samtools-multi/samtools' % root
-picard_binary = '%s/picard/AddOrReplaceReadGroups.jar' % root
-picard_convert_binary = '%s/picard/SamToFastq.jar' % root
 
 file_root = os.path.basename(fq1)
 sam = fq1 + '.sam'
@@ -116,11 +108,12 @@ try:
   exit_status, stdout = commands.getstatusoutput('sudo sysctl vm.overcommit_memory=1')
   
   read_group_id = file_root
+  exit_status, stdout = commands.getstatusoutput('touch %s/%s.sam' % (options.output, file_root))
   
   # 2. Align
   exit_status, stdout = commands.getstatusoutput('%s paired %s %s %s -o %s -t %s -b' % (snap_binary, ref, fq1, fq2, sam, threads))
   print exit_status, stdout
-  exit_status, stdout = commands.getstatusoutput('touch %s/%s.sam' % (options.output, file_root))
+  exit_status, stdout = commands.getstatusoutput('touch %s/%s.raw.bam' % (options.output, file_root))
   
   # 3. SAM to BAM
   run_jobs = []
@@ -135,7 +128,6 @@ try:
     run_jobs.append(job)
   
   [job.join() for job in run_jobs]
-  exit_status, stdout = commands.getstatusoutput('touch %s/%s.raw.bam' % (options.output, file_root))
   
   # Reformat header
   run_jobs = []
@@ -145,7 +137,7 @@ try:
     thread_bam = re.sub('.sam$', '_%02d.bam' % i, sam)
     thread_rg_bam = re.sub('.bam$', '.rg.bam', thread_bam)
     open(thread_sam, 'w').close()
-    command = 'java -Xmx5g -jar %s INPUT=%s OUTPUT=%s SORT_ORDER=unsorted VALIDATION_STRINGENCY=SILENT' % (picard_binary, thread_bam, thread_rg_bam)
+    command = 'java -Xmx5g -jar %s INPUT=%s OUTPUT=%s SORT_ORDER=unsorted VALIDATION_STRINGENCY=SILENT' % (picard_rg_binary, thread_bam, thread_rg_bam)
     command += ' RGID=%s RGLB=%s RGPL=%s RGPU=%s RGSM=%s' % (read_group_id, sample, platform, 1, sample)
     print command
     job = Process(target=commands.getstatusoutput, args=(command,))

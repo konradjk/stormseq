@@ -10,7 +10,6 @@ import time
 import commands
 from helpers import *
 
-root = '/usr/local/bin/'
 parser = OptionParser()
 parser.add_option('--config_file', help='Config File (JSON)')
 
@@ -42,6 +41,8 @@ for read_pair in files.keys():
     except ValueError:
       quality = 20
     map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
+  if parameters['alignment_pipeline'] == 'bwa-mem':
+    map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-mem-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, sample, options.config_file)
   elif parameters['alignment_pipeline'] == 'snap':
     ref_dir = os.path.join(os.path.dirname(ref), 'snap/')
     try:

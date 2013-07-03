@@ -6,8 +6,7 @@ from multiprocessing import Process
 import commands
 import re
 import boto
-
-root = '/usr/local/bin'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--bam', help='Input (merged) BAM file')
@@ -22,9 +21,6 @@ parser.add_option('--indels', action='store_true', help='Call indels in addition
 
 (options, args) = parser.parse_args()
 
-gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
-samtools_binary = '%s/samtools' % root
-
 dbsnp = options.dbsnp
 ref = options.reference
 chromosome = options.chromosome
@@ -32,7 +28,7 @@ dbsnp_chr = dbsnp.replace('.vcf', '_%s.vcf' % chromosome)
 gatk_options = '-stand_call_conf %s -stand_emit_conf %s' % (options.stand_call_conf, options.stand_emit_conf)
 
 recal_bam = '-I ' + re.sub('.merged.bam$', '_%s.recal.bam' % chromosome, options.bam)
-vcf = re.sub('.merged.bam$', '_%s.vcf' % chromosome, options.bam)
+vcf = re.sub('.merged.bam$', '_%s.raw.vcf' % chromosome, options.bam)
 
 try:
   if options.output_gvcf:

@@ -8,8 +8,7 @@ import commands
 import re
 import boto
 import urllib2
-
-root = '/usr/local/bin'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--samples', help='Input S3 filenames')
@@ -35,9 +34,6 @@ def s3_signed_url(file_path):
   key = bucket.new_key(file_path)
   signed_url = key.generate_url(expires_in=3600)
   return signed_url.replace('https://', 'http://')
-
-gatk_binary = '%s/gatk-1.6-13-g91f02df/dist/GenomeAnalysisTK.jar' % root
-samtools_binary = '%s/samtools' % root
 
 dbsnp = options.dbsnp
 ref = options.reference

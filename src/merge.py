@@ -5,8 +5,7 @@ import subprocess
 from optparse import OptionParser
 import commands
 from multiprocessing import Process
-
-root = '/usr/local/bin/'
+from helpers import *
 
 parser = OptionParser()
 parser.add_option('--bams', help='Sorted BAM files')
@@ -19,8 +18,6 @@ input = ' '.join(["I=%s" % lane for lane in options.bams.split(',')])
 
 stats_file = options.output.replace('.bam', '.stats')
 picard_options = ['AS=TRUE', 'MAX_RECORDS_IN_RAM=2000000', 'VALIDATION_STRINGENCY=SILENT', 'CREATE_INDEX=true', 'MERGE_SEQUENCE_DICTIONARIES=true']
-picard_merge_binary = '%s/picard/MergeSamFiles.jar' % root
-picard_stats_binary = '%s/picard/CollectMultipleMetrics.jar' % root
 
 exit_status, stdout = commands.getstatusoutput('java -Xmx4g -jar %s %s O=%s %s' % (picard_merge_binary, input, options.output, ' '.join(picard_options)))
 print exit_status, stdout

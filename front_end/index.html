@@ -8,12 +8,11 @@
     <meta name="author" content="">
       
     <link rel="stylesheet" href="css/bootstrap.min.css" />
-    <link rel="stylesheet" href="css/bootstrap-responsive.min.css" />
-    <link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />
-    <link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />
-    <link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />
+    <!--<link rel="stylesheet" href="css/bootstrap-responsive.min.css" />-->
+    <!--<link type="text/css" href="css/jquery.ui.core.css" rel="stylesheet" />-->
+    <!--<link type="text/css" href="css/jquery.ui.theme.css" rel="stylesheet" />-->
+    <!--<link type="text/css" href="css/jquery.ui.selectmenu.css" rel="stylesheet" />-->
     <link rel="stylesheet" href="css/stormseq.css" />
-    <link type="text/css" rel="stylesheet" href="css/jquery.qtip.css" />
     
     <script type="text/javascript" src="js/jquery-1.7.2.min.js"></script>
     <!--<script type="text/javascript" src='js/jquery-ui-1.8.21.custom.min.js'></script>-->
@@ -43,30 +42,30 @@
               <h4>Load your data</h4>
               Create an S3 bucket as described on the <a href="http://www.stormseq.org/use.html" target='_blank'>STORMSeq page</a> and upload your files.
               <br/><br/>
-              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              <span class="tt" title='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
               This will be used to start additional machines based on the options you have selected and the number of files you upload.
               It will not be shared with any third party.'>
               AWS Account Number:
               </span>&nbsp; <input id='aws_account_number' class='input-medium opts'></input>
               <br/>
-              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              <span class="tt" title='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
               This will be used to start additional machines based on the options you have selected and the number of files you upload.
               It will not be shared with any third party.'>
               Access Key ID: 
               </span>&nbsp; <input id='access_key_id' class='input-medium opts'></input>
               <br/>
-              <span class='qtip-link' qtip-content='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
+              <span class="tt" title='Your Amazon account information will only be sent to the instance you are currently running over a secure connection.
               This will be used to start additional machines based on the options you have selected and the number of files you upload.
               It will not be shared with any third party.'>
               Secret Access Key:
               </span> &nbsp; <input id='secret_access_key' class='opts'></input>
               <br/>
-              <span class='qtip-link' qtip-content='This can be any S3 bucket owned by you.
+              <span class="tt" title='This can be any S3 bucket owned by you.
               STORMSeq will look for your raw data in this bucket and then store the results here.'>
               Amazon S3 bucket:
               </span> &nbsp; <input id='s3_bucket' class='input-medium opts'></input>
               <br/>
-              <span class='qtip-link' qtip-content='<b>On-demand</b> is a standard Amazon instance.
+              <span class="tt" title='<b>On-demand</b> is a standard Amazon instance.
                 These instances have fixed prices, which are typically more expensive than spot instances.
                 However, they are guaranteed server time and are guaranteed not to quit before finishing the jobs.
                 <br/>
@@ -83,7 +82,7 @@
               <br/><br/>
               <span id='instance-type-description'>
                 <span id='normal-description'>
-                  <b>Hourly price of <span class='instance-type-text'>Large</span> instances as of 3/1/13: $<span id='instance-type-on-demand-price'>0.24</span></b>
+                  <b>Hourly price of <span class='instance-type-text'>Large</span> instances as of 6/1/13: $<span id='instance-type-on-demand-price'>0.24</span></b>
                 </span>
                 <span id='spot-description' class='hide'>
                   <span class='instance-type-text'>Large</span> instance bid: $<input id='spot_bid' class='input-mini opts'></input>
@@ -101,7 +100,7 @@
           <div class="span4">
             <div class='well easy-box'>
               <h4>Set your parameters</h4>
-              <span class='qtip-link' qtip-content='Select type of data analysis to optimize data output.
+              <span class="tt" title='Select type of data analysis to optimize data output.
               In whole genome sequence, all regions of the genome will be output.
               For exome sequencing, output will be restricted to particular intervals (faster).
               Intervals files are available for the Illumina capture platform.
@@ -119,9 +118,10 @@
                 <a id='single_individual' value='single_individual' class="btn btn-primary active">One</a>
                 <a id='multiple_individuals' href="#sample_names_modal" data-toggle="modal" value='multiple_individuals' class="btn btn-primary">Multiple</a>
               </div>
+              <input type="checkbox" id="demo_data" class='opts' /> <span class='tt' title='Click here to run demo data instead of your samples. Note that you will still be charged by Amazon for this run.'>Demo data</span>
               <br/>
               <div id='genome_name'>
-                <span class='maybe-qtip-link' qtip-content='If only one sample is uploaded (in the default directory), this sample name will be used for processing in the output file.'>
+                <span class='tt' title='If only one sample is uploaded (in the root directory of the S3 bucket), this sample name will be used for processing in the output file.'>
                   Name your genome:
                 </span> <input id='sample_name' class='input-medium opts'></input>
               </div>
@@ -161,6 +161,7 @@
               <br/>
               dbSNP version:
               <select id='dbsnp_version' class='input-medium opts'>
+                <option value='dbsnp137'>dbSNP 137</option>
                 <option value='dbsnp135'>dbSNP 135</option>
                 <option value='dbsnp132'>dbSNP 132</option>
               </select>
@@ -169,6 +170,7 @@
               <select id='alignment_pipeline' class='input-medium opts'>
                 <option value='bwa'>BWA</option>
                 <option value='snap'>SNAP</option>
+                <option value='bwa-mem'>BWA-MEM (coming soon!)</option>
                 <option value='novo'>Novoalign (coming soon!)</option>
               </select>
               <br/>
@@ -180,13 +182,18 @@
                 <option value='samtools'>Samtools (coming soon!)</option>
               </select>
               <br/>
-              <input type="checkbox" id="call_indels" name="call_indels" class='opts' checked /> Indel Calling
+              Annotation Pipeline:
+              <select id='annotation_pipeline' class='input-medium opts'>
+                <option value='vep'>VEP</option>
+                <option value='vat'>VAT (coming soon!)</option>
+              </select>
               <br/>
-              <input type="checkbox" id="call_svs" name="call_svs" class='opts' checked /> SV Calling (Coming soon!)
+              <input type="checkbox" id="indel_calling" class='opts' checked /> Indel Calling
               <br/>
-              <input type="checkbox" id="joint_calling" name="joint_calling" class='opts' checked /> Joint Variant Calling Across Samples
+              <input type="checkbox" id="sv_calling" class='opts' disabled='disabled' /> SV Calling (Coming soon!)
               <br/>
-              <input type="checkbox" id="output_gvcf" class='opts' name="output_gvcf" />
+              <span id='joint_calling_box' class='hide'><input type="checkbox" id="joint_calling" class='opts' checked /> Joint Variant Calling Across Samples<br/></span>
+              <input type="checkbox" id="output_gvcf" class='opts' disabled='disabled' />
               Output gVCF (Coming soon!<!--; recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>-->)
               <br/><br/>
               <div class='accordion' id="advanced_settings">
@@ -218,7 +225,7 @@
                   <h3>Advanced options for BWA</h3>
                 </div>
                 <div class="modal-body">
-                  <span class='qtip-link' qtip-content='This is the bwa aln -q flag, which will be passed directly to BWA.
+                  <span class="tt" title='This is the bwa aln -q flag, which will be passed directly to BWA.
                    This parameter will trim a read from the end until it encounters a maximum number of bases with Phred quality score below this threshold.
                    See the BWA manual pages for more information.'>
                   -q flag:</span> <input id='bwa_opt_q' class='input-mini opts' value="20"></input>
@@ -234,12 +241,12 @@
                   <h3>Advanced options for SNAP</h3>
                 </div>
                 <div class="modal-body">
-                  <span class='qtip-link' qtip-content='This is the SNAP -d flag, which will be passed directly to SNAP.
+                  <span class="tt" title='This is the SNAP -d flag, which will be passed directly to SNAP.
                    It is the maximum edit distance that SNAP will ever tolerate between a read and a candidate match in the reference genome.
                    See the SNAP manual pages for more information.'>
                   -d flag:</span> <input id='snap_opt_d' class='input-mini opts' value='15'></input>
                   <br/>
-                  <span class='qtip-link' qtip-content='This is the SNAP -h flag, which will be passed directly to SNAP.
+                  <span class="tt" title='This is the SNAP -h flag, which will be passed directly to SNAP.
                    It is the threshold at which SNAP will ignore seeds with more hits than this parameter.
                    See the SNAP manual pages for more information.'>
                   -h flag:</span> <input id='snap_opt_h' class='input-mini opts' value='250'></input>
@@ -303,10 +310,12 @@
             <div class="well easy-box">
               <h4>Start processing</h4>
               <a id='start_button' class='btn btn-success' style='width: 120px; padding: 24px 32px; font-size:3.0em'>GO!</a>
-              <br/><br/>
+              <br/>
+              <div class='run-status'></div>
+              <br/>
               <b>Note that by clicking "GO!", you are starting up Amazon instances and volumes that will be charged to your account.</b>
               <br/>
-              The mapping and variant calling for a whole genome (30X coverage) is estimated at about $30.
+              For current spot pricing (6/1/13), the mapping and variant calling for a whole genome (30X coverage) is estimated at about $30.
               For a full exome (50X coverage), the cost is estimated at about $2.
               However, note that these estimates do not include storage (S3) and that processing times (and thus costs) may vary.
               <br/><br/>
@@ -339,12 +348,9 @@
         <div class="row-fluid" id="progress">
           <div class='span12 well'>
             <h3>Pipeline progress</h3>
-            <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.
-            For multiple samples, mouseover each sample name for details.<br/></small>
-            <div id='all-progress-charts'>
-            </div>
-            <div id='all-progress-charts-hidden'>
-            </div>
+            <div class='run-status'></div>
+            <small>Page will automatically refresh every 5 minutes. Click <span class='link' onclick='click_refresh_progress();'>here</span> to refresh manually.<br/></small>
+            <div class="accordion" id='all-progress-charts'></div>
           </div>
         </div>
       </div>
@@ -375,7 +381,7 @@
           <div class='span12 well'>
           <h3>Visualize your results</h3>
           <small>Page will automatically refresh when results are available. Click <span class='link' onclick='refresh_vis();'>here</span> to refresh manually.<br/></small>
-          <div id='visualize-results'></div>
+          <div id='visualize-results' class='accordion'></div>
           <div id='chart_div' style="width: 900px; height: 500px; display: none;"></div>
           </div>
         </div>
@@ -388,17 +394,16 @@
   </body>
   
   <script src='js/bootstrap.min.js'></script>
-  <script src="js/jquery.ui.core.js"></script>
-  <script src="js/jquery.ui.widget.js"></script>
-  <script src="js/jquery.ui.position.js"></script>
-  <script src="js/jquery.ui.selectmenu.js"></script>
+  <!--<script src="js/jquery.ui.core.js"></script>-->
+  <!--<script src="js/jquery.ui.widget.js"></script>-->
+  <!--<script src="js/jquery.ui.position.js"></script>-->
+  <!--<script src="js/jquery.ui.selectmenu.js"></script>-->
   <script type="text/javascript" src="js/stormseq.js"></script>
-  <script type="text/javascript" src="js/jquery.qtip.min.js"></script>
   <script type="text/javascript" src="js/d3.v2.min.js"></script>
-  <script type="text/javascript" src="js/jquery.autosave.pack.js"></script>
-  <script type="text/javascript" src="js/jquery.cookie.js"></script>
-  
+  <!--<script type="text/javascript" src="js/jquery.autosave.pack.js"></script>-->
+  <!--<script type="text/javascript" src="js/jquery.cookie.js"></script>-->
   <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+  <script type="text/javascript" src="js/canvg.js"></script> 
   <script type="text/javascript">
   google.load("visualization", "1", {packages:["corechart"]});
   </script>

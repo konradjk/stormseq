@@ -11,14 +11,32 @@ ref_paths = {
   'hg19' : '/data/hg19/hg19.fa',
   'ceu_ref' : '/data/ceu_ref/ceu_ref.fa' }
 dbsnp_paths = {
+  'dbsnp137' : '/data/dbsnp/dbsnp_137.vcf',
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-94a132fd',
+  'hg19': 'ami-31e39358',
   'hg19-himem' : 'ami-XXXXXXX'}
 instances = {
   'bwa' : 'm1.large',
+  'bwa-mem' : 'm1.large',
   'snap' : 'm2.4xlarge'}
+
+root = '/usr/local/bin/'
+bwa_binary = '%s/bwa-0.7.5a/bwa' % root
+samtools_binary = '%s/samtools' % root
+samtools_mt_binary = '%s/samtools-multi/samtools' % root
+snap_binary = '%s/snap' % root
+
+picard_rg_binary = '%s/picard/AddOrReplaceReadGroups.jar' % root
+picard_convert_binary = '%s/picard/SamToFastq.jar' % root
+picard_merge_binary = '%s/picard/MergeSamFiles.jar' % root
+picard_stats_binary = '%s/picard/CollectMultipleMetrics.jar' % root
+picard_binary = '%s/picard/MarkDuplicates.jar' % root
+
+gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
+vcftools_binary = '%s/vcftools' % root
+vep_binary = '%s/variant_effect_predictor/variant_effect_predictor.pl' % root
 
 # Failure types
 def cluster_fail(fail_string):
@@ -92,7 +110,7 @@ aws_secret_access_key = %(secret_access_key)s
   output_config.close()
 
 def check_files(parameters, dir, log):
-  directory = 's3://%s/' % (parameters['s3_bucket'])
+  directory = 's3://%s/' % (parameters['input_s3_bucket'])
   directory += '' if dir is None else '%s/' % dir
   command = 'sudo s3cmd ls %s' % directory
   log.write(command + '\n')
@@ -142,7 +160,7 @@ def check_files(parameters, dir, log):
 
 def s3_signed_url(parameters, file_path):
   s3conn = boto.connect_s3(parameters['access_key_id'], parameters['secret_access_key'])
-  bucket = s3conn.get_bucket(parameters['s3_bucket'], validate=False)
+  bucket = s3conn.get_bucket(parameters['input_s3_bucket'], validate=False)
   key = bucket.new_key(file_path)
   signed_url = key.generate_url(expires_in=86400)
   return signed_url

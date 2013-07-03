@@ -13,7 +13,6 @@ parser.add_option('--fq2', help='FASTQ file, pair 2')
 parser.add_option('--reference', help='Genome FASTA file')
 parser.add_option('--platform', help='Platform', default='Illumina')
 parser.add_option('--sample', help='Sample', default='Me')
-parser.add_option('--quality', help='Quality', default='20')
 parser.add_option('--output', help='Output directory')
 parser.add_option('--config_file', help='Config File (JSON)')
 
@@ -32,11 +31,8 @@ fq2 = os.path.join('/mnt2/', os.path.basename(s3_fq2))
 ref = options.reference
 platform = options.platform
 sample = options.sample
-quality = options.quality
 
 file_root = os.path.basename(fq1)
-sai1 = fq1 + '.sai'
-sai2 = fq2 + '_2.sai' if fq2.endswith('.bam') else fq2 + '.sai'
 sam = fq1 + '.sam'
 bam = fq1 + '.raw.bam'
 sorted_bam = options.output + file_root + '.sorted.bam'
@@ -89,31 +85,15 @@ try:
   
   rg_format = "\'@RG\\tID:%s\\tSM:%s\\tPL:%s\\tLB:%s\'" % (file_root, sample, platform, sample)
   
-  # 1. ALN
-  command = '%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai1, ref, fq1)
-  aln1 = Process(target=commands.getstatusoutput, args=(command, ))
-  aln1.start()
-  
-  command = '%s aln -q %s -f %s %s %s' % (bwa_binary, quality, sai2, ref, fq2)
-  aln2 = Process(target=commands.getstatusoutput, args=(command, ))
-  aln2.start()
-  
-  aln1.join()
-  aln2.join()
-  
-  # 2. SAMPE
+  # 1. MEM
   open(options.output + file_root + '.sam', 'w').close()
-  sampe_command = '%s sampe -r %s %s' % (bwa_binary, rg_format, ' '.join([ref, sai1, sai2, fq1, fq2]))
+  mem_command = '%s mem -t 2 -M -R %s %s' % (bwa_binary, rg_format, ' '.join([ref, fq1, fq2]))
   view_command = '%s view -b -h -S -t %s -o %s -' % (samtools_binary, ref, bam)
-  exit_status, stdout = commands.getstatusoutput(sampe_command + ' | ' + view_command)
+  exit_status, stdout = commands.getstatusoutput(mem_command + ' | ' + view_command)
   print exit_status, stdout
-  open(sai1, 'w').close()
-  open(sai2, 'w').close()
   
   # 3. SAM to BAM
   open(options.output + file_root + '.raw.bam', 'w').close()
-  #exit_status, stdout = commands.getstatusoutput(view_command)
-  #print exit_status, stdout
   
   # 4. Sort BAM
   exit_status, stdout = commands.getstatusoutput('%s sort %s %s' % (samtools_binary, bam, sorted_bam_prefix))

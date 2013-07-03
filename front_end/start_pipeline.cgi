@@ -96,16 +96,17 @@ def start_sample(index, sample, dir=None):
     f.write('Trying zone %s\n' % zone)
     f.flush()
     try:
-      while True:
+      for i in range(3):
         try:
-          create_volume_command = "sudo starcluster createvolume --shutdown-volume-host --name=stormseq_%s %s %s" % (sample, size, zone)
+          create_volume_command = "sudo timelimit -T 1 -t 900 starcluster createvolume --shutdown-volume-host --name=stormseq_%s %s %s" % (sample, size, zone)
           stdout = subprocess.check_output(create_volume_command.split(), stderr=subprocess.STDOUT)
           break
         except subprocess.CalledProcessError, e:
           f.write('Volume error: ' + str(e.output) + '\n')
-          if e.output.find('The requested Availability Zone is currently constrained') == -1:
+          if e.output.find('The requested Availability Zone is currently constrained') > -1:
+            raise
+          elif i == 2:
             generic_response('Failed to create volume. Error: %s' % e.output)
-          raise
       
       f.write('Successfully created volume in %s\n' % zone)
       check_volume_command = "sudo starcluster lv --name=stormseq_%s" % sample
@@ -136,7 +137,10 @@ def start_sample(index, sample, dir=None):
           break
         except subprocess.CalledProcessError, e:
           f.write('Starting error (%s): %s\n' % (i, e.output))
-          raise
+          if stdout.find('The cluster is now ready to use.') == -1:
+            kill_cmd = 'starcluster terminate -c stormseq_%s' % (sample)
+            subprocess.check_output(kill_cmd.split())
+            continue
       if not started:
         cluster_fail('Something went wrong starting the cluster')
       break
@@ -179,15 +183,11 @@ def start_sample(index, sample, dir=None):
   p = subprocess.Popen(['python', '/var/www/check_cluster.py', config_file], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
   f.write('%s\n' % p.pid)
 
-all_start_pipelines = []
-if parameters['number_of_genomes'] == 'multiple_individuals':
-  for index, sample in enumerate(samples):
-    start_sample(index, sample, sample)
-  if parameters['joint_calling']:
-    p = subprocess.Popen(['python', '/var/www/joint_calling.py', json.dumps(parameters)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-    f.write('%s\n' % p.pid)
-else:
-  start_sample(0, sample)
+for index, sample in enumerate(samples):
+  start_sample(index, sample, sample)
+if parameters['joint_calling'] and len(samples) > 1:
+  p = subprocess.Popen(['python', '/var/www/joint_calling.py', json.dumps(parameters)], stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+  f.write('%s\n' % p.pid)
 
 f.close()
 print 'Content-Type: text/html'

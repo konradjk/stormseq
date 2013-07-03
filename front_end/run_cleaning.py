@@ -35,9 +35,11 @@ try:
   f.write('finished!\n')
   
   if parameters['instance_type'] == 'm1.large':
-    nodes_needed = min(parameters['max_on_zone'], 24)
+    n = 8 if parameters['data_type'].find('exome') > -1 else 24
+    nodes_needed = min(parameters['max_on_zone'], n)
   elif parameters['instance_type'] == 'm2.4xlarge':
-    nodes_needed = min(parameters['max_on_zone'], 4)
+    n = 2 if parameters['data_type'].find('exome') > -1 else 4
+    nodes_needed = min(parameters['max_on_zone'], n)
   total_nodes = int(parameters['number_of_processes'])
   f.write('have:\t%s nodes\nneed:\t%s nodes\n' % (total_nodes, nodes_needed))
   f.flush()
@@ -96,6 +98,7 @@ try:
   
   clean_qsub = 'qsub -b y -cwd python clean.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --platform=%(platform)s --covariates=%(covariates)s --chromosome=%(chromosome)s %(intervals)s %(bad_cigar)s'
   call_qsub = 'qsub -hold_jid %(hold)s -b y -cwd python %(program)s-call.py --bam=/mydata/%(bam)s --dbsnp=%(dbsnp)s --reference=%(reference)s --chromosome=%(chromosome)s %(intervals)s %(indels)s'
+  annotate_qsub = "qsub -hold_jid %(hold)s -b y -cwd python %(annotate_program)s-annotate.py --input=/mydata/%(sample)s_%(chromosome)s.raw.vcf --output=/mydata/%(sample)s_%(chromosome)s.vcf --chromosome=%(chromosome)s"
   
   f.write(clean_qsub + '\n' + call_qsub + '\n')
   chroms = get_chroms()
@@ -103,12 +106,14 @@ try:
   possible_covariates = 'ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,ContextCovariate'.split(',')
   
   inputs = {
+    'sample' : sample,
     'bam' : parameters['sample_name'] + '.merged.bam',
     'dbsnp' : dbsnp_paths[parameters['dbsnp_version']],
     'reference' : ref_paths[parameters['genome_version']],
     'platform' : 'Illumina',
     'covariates' : ','.join([x for x in possible_covariates if parameters[x]]),
     'program': parameters['calling_pipeline'],
+    'annotate_program' : parameters['annotation_pipeline'],
     'intervals': '',
     'indels' : '--indels' if parameters['indel_calling'] else '',
     'bad_cigar' : '--bad_cigar' if parameters['alignment_pipeline'] == 'snap' else ''}
@@ -161,10 +166,27 @@ try:
     job = get_job_id(stdout)
     f.write(stdout + '\n')
     all_call_jobs.append(job)
+    inputs['hold'] = job
+    
+    chrom_job = copy.deepcopy(starcluster)
+    chrom_job.append("'" + annotate_qsub % inputs + "'")
+    f.write(' '.join(chrom_job) + '\n')
+    stdout = subprocess.check_output(chrom_job)
+    job = get_job_id(stdout)
+    f.write(stdout + '\n')
+    all_call_jobs.append(job)
     
     # SV calling
     if parameters['sv_calling']:
       pass
+  
+  raw_command = "sudo starcluster sshmaster stormseq_%s 'qsub -b y -cwd -q all.q@master,all.q@node001 " % sample
+  
+  depth_command = raw_command + "-N depm python depth.py --reference=%s --input=/mydata/%s --output=/mydata/%s.merged.depth'" % (ref_paths[parameters['genome_version']], inputs['bam'], parameters['sample_name'])
+  f.write(depth_command)
+  exit_status, stdout = commands.getstatusoutput(depth_command)
+  job = get_job_id(stdout)
+  f.write(stdout + '\n')
   
   priority = ','.join(chroms)
   all_bams = ','.join(['/mydata/' + parameters['sample_name'] + '_' + chrom + '.recal.bam' for chrom in chroms])
@@ -174,7 +196,6 @@ try:
   put_conf_file_command = 'sudo starcluster put stormseq_%s --node node001 /root/.boto /root/.boto' % (sample)
   stdout = commands.getoutput(put_conf_file_command)
   
-  raw_command = "sudo starcluster sshmaster stormseq_%s 'qsub -b y -cwd -q all.q@master,all.q@node001 " % sample
   final_bam = parameters['sample_name'] + '.final.bam'
   
   merge_command = raw_command + "-hold_jid %s -N mergef python merge.py --bams=%s --output=/mydata/%s'" % (','.join(all_clean_jobs), all_bams, final_bam)
@@ -199,19 +220,19 @@ try:
   vcf_merge_command = raw_command +  "-hold_jid %s -N mergevs python merge-vcf.py --reference=%s --priority=%s --output=/mydata/%s'" % (','.join(all_call_jobs), ref_paths[parameters['genome_version']], priority, parameters['sample_name'] + '.vcf')
   f.write(vcf_merge_command)
   exit_status, stdout = commands.getstatusoutput(vcf_merge_command)
-  job = get_job_id(stdout)
+  vcf_job = get_job_id(stdout)
   f.write(stdout + '\n')
   
-  job, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf', parameters['s3_bucket'], job)
+  _, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf', parameters['s3_bucket'], vcf_job)
   
-  vcf_stats_command = raw_command + "-hold_jid %s -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
-  f.write(vcf_stats_command)
+  vcf_stats_command = raw_command + "-hold_jid %s -N vcfstats python vcf-stats.py %s --reference=%s --dbsnp=%s --input=/mydata/%s.vcf --output=/mydata/%s.vcf.eval'" % (vcf_job, inputs['intervals'], ref_paths[parameters['genome_version']], dbsnp_paths[parameters['dbsnp_version']], parameters['sample_name'], parameters['sample_name'])
+  f.write(vcf_stats_command + '\n')
   exit_status, stdout = commands.getstatusoutput(vcf_stats_command)
   job = get_job_id(stdout)
   f.write(stdout + '\n')
   
-  job, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf.eval', parameters['s3_bucket'], job)
-  job, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf.snpden', parameters['s3_bucket'], job)
+  _, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf.eval', parameters['s3_bucket'], job)
+  _, bucket_file = put_file_in_s3(parameters['sample_name'], 'vcf.snpden', parameters['s3_bucket'], job)
   
   time.sleep(60)
   command = ['sudo', 'python', '/var/www/finish.py', config_file]
