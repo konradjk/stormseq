@@ -71,6 +71,7 @@ for sample_name in samples:
     cleans[chrom] += int((sample_name + '_%s.align.bam' % chrom) in files)
     cleans[chrom] += int((sample_name + '_%s.recal.bam' % chrom) in files)
     cleans[chrom] += int((sample_name + '_%s.raw.vcf' % chrom) in files) or int((sample_name + '_%s.vcf' % chrom) in files)
+    cleans[chrom] += int((sample_name + '_%s.raw.vcf.done' % chrom) in files)
     cleans[chrom] += int((sample_name + '_%s.vcf.done' % chrom) in files)
   
   outputs = {}

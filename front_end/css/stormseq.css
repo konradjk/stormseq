@@ -1,3 +1,8 @@
+.modal .modal-body {
+    max-height: 420px;
+    overflow-y: auto;
+}
+
 .link {
   text-decoration: underline;
   cursor: pointer;

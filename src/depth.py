@@ -12,8 +12,11 @@ parser.add_option('--output')
 parser.add_option('--reference')
 parser.add_option('--intervals', help='Intervals file (for exome seq, e.g.)', default=None)
 parser.add_option('--gene_list', default=None)
+parser.add_option('--lite', help='Run GATK Lite instead of Full', action='store_true', default=False)
 
 (options, args) = parser.parse_args()
+
+if options.lite: gatk_binary = gatk_lite_binary
 
 other_options = '--omitDepthOutputAtEachBase --omitLocusTable'
 other_options += '' if options.gene_list is None else ' --calculateCoverageOverGenes %s' % options.gene_list

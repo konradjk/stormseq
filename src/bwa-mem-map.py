@@ -22,6 +22,19 @@ with open(options.config_file) as f:
   input = json.loads(f.readline())
 parameters = input['parameters']
 
+threads_per_instance = {
+	'm1.large' : 2,
+	'm1.xlarge' : 4 if len(input['files']) == 1 else 2,
+	'c1.xlarge' : 8
+}
+if len(input['files']) == 1:
+	threads_per_instance['m2.4xlarge'] = 8
+elif len(input['files']) == 2:
+	threads_per_instance['m2.4xlarge'] = 4
+else:
+	threads_per_instance['m2.4xlarge'] = 2
+threads = threads_per_instance[parameters['instance_type']]
+
 # Get files from S3
 s3_fq1 = options.fq1
 s3_fq2 = options.fq2
@@ -87,7 +100,7 @@ try:
   
   # 1. MEM
   open(options.output + file_root + '.sam', 'w').close()
-  mem_command = '%s mem -t 2 -M -R %s %s' % (bwa_binary, rg_format, ' '.join([ref, fq1, fq2]))
+  mem_command = '%s mem -t %s -M -R %s %s' % (bwa_binary, threads, rg_format, ' '.join([ref, fq1, fq2]))
   view_command = '%s view -b -h -S -t %s -o %s -' % (samtools_binary, ref, bam)
   exit_status, stdout = commands.getstatusoutput(mem_command + ' | ' + view_command)
   print exit_status, stdout

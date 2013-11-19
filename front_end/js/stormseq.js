@@ -8,7 +8,7 @@ $(document).ready(function(){
   });
   
   $('#start_button').attr("disabled", false);
-  $('#start_button').click(start_pipeline);
+  $('#start_button').click(check_start_pipeline);
   $('#confirm_cancel_button').click(function() {
     $("#cancel-box").modal('show');
   });
@@ -21,7 +21,7 @@ $(document).ready(function(){
   dropzone.addEventListener("drop", drop_creds, false);
 
   $('#amazon-request-types > a').click(function() {
-    $('#instance-type-description > span').hide();
+    $('#instance-type-description > span.amazon_types').hide();
     setTimeout(function() {
       $('#' + $('#amazon-request-types > a.active').attr('value') + '-description').show();
     }, 20);
@@ -46,31 +46,59 @@ $(document).ready(function(){
     $('#joint_calling_box').hide();
   });
   $('#snap-advanced-link').hide();
+  
   $('#alignment_pipeline').change(function() {
     $('#map-advanced-links > a').hide();
     v = $('#alignment_pipeline').val();
     $('#' + v + '-advanced-link').show();
-    if (v == 'bwa') {
-      $('.instance-type-text').text('Large');
-      $('#instance-type-on-demand-price').text('0.24');
-    } else if (v == 'snap') {
-      $('.instance-type-text').text('High memory');
-      $('#instance-type-on-demand-price').text('1.64');
+    
+    $('#default_instance_option').text('Default (' + instance_normal_prices[default_instances[v]].split(',')[0] + ')');
+    //Disable disallowed options
+    $('#amazon-instance-types > option[value!="default"]').attr('disabled', 'disabled');
+    $.each(allowed_instances[v], function(j, k) {
+      $('#amazon-instance-types > option[value="' + k + '"]').removeAttr('disabled');
+    });
+    //Reset to the default if new option is no longer allowed
+    if ($('#amazon-instance-types').find(':selected').attr('disabled') == 'disabled') {
+      $('#amazon-instance-types').val('default');
     }
-    refresh_spot_prices();
+    if ($('#amazon-instance-types').val() == 'default') {
+      change_pricing();
+    }
   });
+  
+  $('#amazon-instance-types').change(change_pricing);
   $('#samtools-advanced-link').hide();
-  $('#calling-pipeline').change(function() {
+  $('#calling_pipeline').change(function() {
     $('#call-advanced-links > a').hide();
-    v = $('#calling-pipeline').val();
+    v = $('#calling_pipeline').val();
+    v = v.replace('-lite', '');
     $('#' + v + '-advanced-link').show();
+    if (v == 'gatk') {
+      $('#gvcf_box').show();
+    } else {
+      $('#gvcf_box').hide();
+    }
   });
-  //$('.autosave_restore').click();
-  //$('input textarea').autosave({cookieExpiryLength: 30});
-  //$('.autosave_restore').click();
   refresh_vis();
   click_refresh_progress();
 });
+
+var default_instances = {};
+default_instances['bwa'] = 'm1.large';
+default_instances['bwa-mem'] = 'c1.xlarge';
+default_instances['snap'] = 'm2.4xlarge';
+
+var allowed_instances = {};
+allowed_instances['bwa'] = ['m1.large', 'm1.xlarge', 'c1.xlarge', 'm2.4xlarge'];
+allowed_instances['bwa-mem'] = ['m1.large', 'm1.xlarge', 'c1.xlarge', 'm2.4xlarge'];
+allowed_instances['snap'] = ['m2.4xlarge'];
+
+var instance_normal_prices = {};
+instance_normal_prices['m1.large'] = 'Large,0.24';
+instance_normal_prices['c1.xlarge'] = 'High CPU,0.58';
+instance_normal_prices['m1.xlarge'] = 'Extra Large,0.48';
+instance_normal_prices['m2.4xlarge'] = 'High memory,1.64';
 
 function dragover(e) {
   e.stopPropagation();
@@ -101,19 +129,22 @@ function drop_creds(e) {
   });
 }
 
-
-// Setup UI
+function change_pricing() {
+  if ($('#amazon-instance-types').val() == 'default') {
+    type = default_instances[$('#alignment_pipeline').val()];
+  } else {
+    type = $('#amazon-instance-types').val();
+  }
+  $('.instance-type-text').text(instance_normal_prices[type].split(',')[0]);
+  $('#instance-type-on-demand-price').text(instance_normal_prices[type].split(',')[1]);
+  refresh_spot_prices();
+}
 function refresh_spot_prices() {
   $('#current-spot-price').html('Loading... <img src="images/busy.gif" />');
   
   $.post("get_current_prices.cgi", { all_objects: JSON.stringify(get_all_data()) },
     function(response){
-      prices = response.split(',');
-      if ($('.instance-type-text')[0].innerText == 'Large'){
-        $('#current-spot-price').html(prices[0]);
-      } else {
-        $('#current-spot-price').html(prices[1]);
-      }
+      $('#current-spot-price').html(response);
     }
   );
 }
@@ -166,10 +197,20 @@ function remove_sample(s) {
 
 
 // Start pipeline helpers
-function start_pipeline() {
+function check_start_pipeline() {
   if ($('#start_button').attr("disabled") == 'disabled') {
     return false;
   }
+  // Preparation for license agreements.
+  if (false) {
+    $('#license_modal_content').load("gatk_license.html");
+    $('#license_modal').modal('show');
+  } else {
+    start_pipeline();
+  }
+}
+
+function start_pipeline() {
   $('#cancel_button').attr("disabled", true);
   $('#start_button').attr("disabled", true);
   $('#start_tab').collapse('hide');
@@ -438,7 +479,7 @@ function setup_mapping_chart(sample, response_data, pipeline) {
 function setup_cleaning_chart(sample, response_data) {
   // Cleaning chart
   chroms = get_chroms();
-  steps = 6;
+  steps = 7;
   if (sample == 'call_all_samples') {
     steps = 2;
   }
@@ -481,7 +522,7 @@ function setup_cleaning_chart(sample, response_data) {
                 if (sample == 'call_all_samples') {
                   var labels = {2: 'Done!'};
                 } else {
-                  var labels = {1: 'Split', 2: 'Mark Duplicates', 3: 'Realignment', 4: 'Recalibration', 5: 'Variant Calling', 6: 'Done!'};
+                  var labels = {1: 'Split', 2: 'Mark Duplicates', 3: 'Realign', 4: 'Recalibrate', 5: 'Variant Calls', 6: 'Annotation', 7: 'Done!'};
                 }
                 return labels[input];
             });
@@ -611,7 +652,7 @@ function make_clean_chart(sample, response_data) {
   if (sample == 'call_all_samples') {
     get_dimensions(chroms, 1);
   } else {
-    get_dimensions(chroms, 6);
+    get_dimensions(chroms, 7);
   }
   var chart = d3.select("#progress-chart-2-" + sample);
   chart.selectAll("rect")
@@ -632,7 +673,7 @@ function make_final_chart(sample, response_data) {
   if (sample == 'call_all_samples') {
     get_dimensions(chroms, 1);
   } else {
-    get_dimensions(chroms, 6);
+    get_dimensions(chroms, 7);
   }
   if (sample != 'call_all_samples' && response_data['outputs']['final']) {
     chart.select('g').append("text")

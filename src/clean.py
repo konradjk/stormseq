@@ -16,6 +16,8 @@ parser.add_option('--platform', help='Platform', default='Illumina')
 parser.add_option('--covariates', help='Covariates (comma-separated)', default='ReadGroupCovariate,QualityScoreCovariate,CycleCovariate,ContextCovariate')
 parser.add_option('--intervals', help='Intervals file (for exome seq, e.g.)', default=None)
 parser.add_option('--bad_cigar', help='Allow malformed CIGAR strings (recommended for SNAP)', action='store_true', default=False)
+parser.add_option('--threads', help='Threads', default=1)
+parser.add_option('--lite', help='Run GATK Lite instead of Full', action='store_true', default=False)
 
 (options,args) = parser.parse_args()
 print options
@@ -27,6 +29,8 @@ platform = options.platform
 covariates_raw = options.covariates
 covariates = ' '.join(['-cov ' + x for x in covariates_raw.split(',')])
 
+if options.lite: gatk_binary = gatk_lite_binary
+
 chrom_bam = re.sub('.merged.bam$', '_%s.merged.bam' % chromosome, in_bam)
 nodup_bam = re.sub('.merged.bam$', '.nodup.bam', chrom_bam)
 dup_met = re.sub('.merged.bam$', '.dupmetrics', chrom_bam)
@@ -35,6 +39,8 @@ realigned_bam = re.sub('.merged.bam$', '.align.bam', chrom_bam)
 rec_file = re.sub('.merged.bam$', '.recal_data.cov', chrom_bam)
 recal_bam = re.sub('.merged.bam$', '.recal.bam', chrom_bam)
 vcf = re.sub('.merged.bam$', '.vcf', chrom_bam)
+
+threads = '-nct %s' % options.threads if options.threads > 1 else ''
 
 try:
   # Split by chromosome
@@ -55,22 +61,22 @@ try:
     print exit_status, stdout
   
   # 6. Find regions to realign
-  command = 'java -Xmx6g -jar %s -T RealignerTargetCreator -L %s -R %s -I %s --known %s -o %s' % (gatk_binary, chromosome, ref, nodup_bam, dbsnp, realign_intervals)
+  command = 'java -Xmx6300m -jar %s -T RealignerTargetCreator -L %s -R %s -I %s --known %s -o %s' % (gatk_binary, chromosome, ref, nodup_bam, dbsnp, realign_intervals)
   run_gatk_commands(command)
   
   # 7. Indel realignment
-  command = 'java -Xmx6g -jar %s -T IndelRealigner -L %s -R %s -I %s -o %s --knownAlleles %s --targetIntervals %s' % (gatk_binary, chromosome, ref, nodup_bam, realigned_bam, dbsnp, realign_intervals)
+  command = 'java -Xmx6300m -jar %s -T IndelRealigner -L %s -R %s -I %s -o %s --knownAlleles %s --targetIntervals %s' % (gatk_binary, chromosome, ref, nodup_bam, realigned_bam, dbsnp, realign_intervals)
   run_gatk_commands(command)
   open(nodup_bam, 'w').close()
   
   # 8. Count Covariates
   #command = 'java -Xmx6g -jar %s -T CountCovariates %s -L %s -R %s -I %s --knownSites %s --default_platform %s -recalFile %s' % (gatk_binary, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file) # 1.6
-  command = 'java -Xmx6g -jar %s -T BaseRecalibrator %s -L %s -R %s -I %s --knownSites %s --default_platform %s -o %s --disable_indel_quals' % (gatk_binary, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file)
+  command = 'java -Xmx6300m -jar %s -T BaseRecalibrator %s %s -L %s -R %s -I %s --knownSites %s --default_platform %s -o %s --disable_indel_quals' % (gatk_binary, threads, covariates, chromosome, ref, realigned_bam, dbsnp, platform, rec_file)
   command += ' -rf BadCigar' if options.bad_cigar else ''
   run_gatk_commands(command)
   
   # 9. Base Quality Score Recalibration
-  command = 'java -Xmx6g -jar %s -T PrintReads -L %s -R %s -I %s --out %s -BQSR %s' % (gatk_binary, chromosome, ref, realigned_bam, recal_bam, rec_file)
+  command = 'java -Xmx6300m -jar %s -T PrintReads %s -L %s -R %s -I %s --out %s -BQSR %s' % (gatk_binary, threads, chromosome, ref, realigned_bam, recal_bam, rec_file)
   command += ' -rf BadCigar' if options.bad_cigar else ''
   run_gatk_commands(command)
   open(realigned_bam, 'w').close()

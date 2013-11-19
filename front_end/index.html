@@ -80,11 +80,28 @@
                 <a name='spot' value='spot' class="btn btn-primary">Spot Request</a>
               </div>
               <br/><br/>
+              <div class='accordion' id="advanced_settings">
+                <div class="accordion-group">
+                  <div class="accordion-heading">
+                    <a class="accordion-toggle" data-toggle="collapse" data-parent="#machine_settings" href="#machine-links">Instance type settings (advanced)</a>
+                  </div>
+                  <div id='machine-links' class='accordion-body collapse'>
+                    <div class="accordion-inner">
+                      <select id='amazon-instance-types' class='input-medium opts'>
+                        <option value='default' id='default_instance_option'>Default (Large)</option>
+                        <option value='c1.xlarge'>High-CPU Extra Large (BWA and BWA-MEM; c1.xlarge)</option>
+                        <option value='m1.xlarge'>Extra Large (BWA and BWA-MEM; m1.xlarge)</option>
+                        <option value='m2.4xlarge'>High-Memory 4X Extra Large (All; m2.4xlarge)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <span id='instance-type-description'>
-                <span id='normal-description'>
+                <span id='normal-description' class='amazon_types'>
                   <b>Hourly price of <span class='instance-type-text'>Large</span> instances as of 6/1/13: $<span id='instance-type-on-demand-price'>0.24</span></b>
                 </span>
-                <span id='spot-description' class='hide'>
+                <span id='spot-description' class='hide amazon_types'>
                   <span class='instance-type-text'>Large</span> instance bid: $<input id='spot_bid' class='input-mini opts'></input>
                   <br/>
                   <b>30 day spot history:</b><br/>
@@ -93,6 +110,15 @@
                   If price history is not displayed, please enter your Access Key ID and Secret Access Key
                   and click <span class='link' onclick='refresh_spot_prices();'>here</span>.
                 </span>
+                <br/><br/>
+                <b>Note that this is a per-instance, per-hour price.</b>
+                STORMSeq may start up multiple
+                <span class="tt" title='The number of instances depends on the number of samples and input files provided, and what type of analysis (exome or genome) is selected.'>instances</span>,
+                which may lead to higher hourly costs than this price, which does not include storage.
+                Click
+                <a href="https://portal.aws.amazon.com/gp/aws/developer/account?ie=UTF8&action=activity-summary" target="_blank">here</a>
+                <!--<a href="https://console.aws.amazon.com/billing/home#/" target="_blank">here</a>-->
+                for your usage information.
               </span>
             </div>
           </div>
@@ -110,7 +136,7 @@
               <select id='data_type' class='input-xlarge opts'>
                 <option value='type_wgs'>Whole Genome Sequence</option>
                 <option value='type_exome_illumina'>Illumina TruSeq Exome</option>
-                <option value='type_exome_custom'>Upload your own intervals file (coming soon!)</option>
+                <option value='type_exome_custom' disabled='disabled'>Upload your own intervals file (coming soon!)</option>
               </select>
               <br/>
               Number of genomes:
@@ -156,7 +182,7 @@
               Genome version:
               <select id='genome_version' class='input-medium opts'>
                 <option value='hg19'>hg19</option>
-                <option value='ceu_ref'>CEU reference (hg19; Coming soon!)</option>
+                <option value='ceu_ref' disabled='disabled'>CEU reference (hg19; Coming soon!)</option>
               </select>
               <br/>
               dbSNP version:
@@ -169,23 +195,24 @@
               Alignment:
               <select id='alignment_pipeline' class='input-medium opts'>
                 <option value='bwa'>BWA</option>
+                <option value='bwa-mem'>BWA-MEM</option>
                 <option value='snap'>SNAP</option>
-                <option value='bwa-mem'>BWA-MEM (coming soon!)</option>
-                <option value='novo'>Novoalign (coming soon!)</option>
+                <!--<option value='novo'>Novoalign (coming soon!)</option>-->
               </select>
               <br/>
-              Cleaning Pipeline: GATK
+              Cleaning Pipeline: GATK Lite (2.1)
               <br/>
               SNP Calling:
               <select id='calling_pipeline' class='input-medium opts'>
-                <option value='gatk'>GATK</option>
-                <option value='samtools'>Samtools (coming soon!)</option>
+                <option value='gatk-lite'>GATK Lite</option>
+                <option value='samtools'>Samtools</option>
+                <option value='gatk' disabled='disabled'>GATK 2.7 (coming soon!)</option>
               </select>
               <br/>
               Annotation Pipeline:
               <select id='annotation_pipeline' class='input-medium opts'>
                 <option value='vep'>VEP</option>
-                <option value='vat'>VAT (coming soon!)</option>
+                <option value='vat' disabled='disabled'>VAT (coming soon!)</option>
               </select>
               <br/>
               <input type="checkbox" id="indel_calling" class='opts' checked /> Indel Calling
@@ -193,8 +220,10 @@
               <input type="checkbox" id="sv_calling" class='opts' disabled='disabled' /> SV Calling (Coming soon!)
               <br/>
               <span id='joint_calling_box' class='hide'><input type="checkbox" id="joint_calling" class='opts' checked /> Joint Variant Calling Across Samples<br/></span>
-              <input type="checkbox" id="output_gvcf" class='opts' disabled='disabled' />
-              Output gVCF (Coming soon!<!--; recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>-->)
+              <span id='gvcf_box'>
+                <input type="checkbox" id="output_gvcf" class='opts' disabled='disabled' />
+                Output gVCF (Coming soon!<!--; recommended for input to <a href="http://www.interpretome.com" target="_blank">Interpretome</a>-->)
+              </span>
               <br/><br/>
               <div class='accordion' id="advanced_settings">
                 <div class="accordion-group">
@@ -297,7 +326,7 @@
                   <h3>Advanced options for Samtools</h3>
                 </div>
                 <div class="modal-body">
-                  -C flag: <input id='samtools_opt_c' class='input-mini opts' value='50'></input>
+                  Max depth to call a variant (typically ~2X mean depth; vcfUtils -D): <input id='samtools_opt_d' class='input-mini opts' value='100'></input>
                 </div>
                 <div class="modal-footer">
                   <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Close</a>
@@ -390,7 +419,17 @@
     </div>
   </div>
 </div>
-  
+  <div id='license_modal' class='modal hide fade'>
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+      <h3>You have selected a software that requires a license. Please accept the license to continue:</h3>
+    </div>
+    <div class="modal-body" id="license_modal_content"></div>
+    <div class="modal-footer">
+      <a href="#" class="btn" data-dismiss="modal" aria-hidden="true">Cancel</a>
+      <a href="#" class="btn btn-primary" data-dismiss="modal" aria-hidden="true" onclick="start_pipeline()">Accept terms and start</a>
+    </div>
+  </div>
   </body>
   
   <script src='js/bootstrap.min.js'></script>

@@ -18,15 +18,20 @@ parser.add_option('--config_file', help='Config File (JSON)')
 with open(options.config_file) as f:
   input = json.loads(f.readline())
 
-f = open('map_log.txt', 'w')
-files = input['files']
-sample = input['sample']
-parameters = input['parameters']
-parameters['sample_name'] = sample
 try:
   stdout = commands.getoutput('find /mydata/* | grep -v cnf | xargs rm -r')
 except Exception, e:
   pass
+try:
+	os.mkdir('/mydata/logs/')
+except OSError, e:
+	pass
+
+f = open('/mydata/logs/map_log.txt', 'w')
+files = input['files']
+sample = input['sample']
+parameters = input['parameters']
+parameters['sample_name'] = sample
 setup_s3cfg(parameters, '/mydata/.s3cfg')
 
 ref = ref_paths[parameters['genome_version']]
@@ -40,9 +45,9 @@ for read_pair in files.keys():
       quality = int(parameters['bwa_opt_q'])
     except ValueError:
       quality = 20
-    map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
+    map_command = "qsub -b y -cwd -R y -l virtual_free=6700M -e /mydata/logs/ -o /mydata/logs/ python bwa-map.py --fq1=%s --fq2=%s --reference=%s --quality=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, quality, sample, options.config_file)
   if parameters['alignment_pipeline'] == 'bwa-mem':
-    map_command = "qsub -b y -cwd -R y -l s_vmem=8G python bwa-mem-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, sample, options.config_file)
+    map_command = "qsub -b y -cwd -R y -l virtual_free=6700M -e /mydata/logs/ -o /mydata/logs/ python bwa-mem-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref, sample, options.config_file,)
   elif parameters['alignment_pipeline'] == 'snap':
     ref_dir = os.path.join(os.path.dirname(ref), 'snap/')
     try:
@@ -53,7 +58,7 @@ for read_pair in files.keys():
       h = int(parameters['snap_opt_h'])
     except ValueError:
       h = 250
-    map_command = "qsub -b y -cwd -R y -l h_vmem=60G python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
+    map_command = "qsub -b y -cwd -R y -l h_vmem=60G -e /mydata/logs/ -o /mydata/logs/ python snap-map.py --fq1=%s --fq2=%s --reference=%s --sample=%s --config_file=%s --output=/mydata/" % (s3_fq1, s3_fq2, ref_dir, sample, options.config_file)
   f.write(map_command + '\n')
   stdout = commands.getoutput(map_command)
   f.write(stdout + '\n')
@@ -62,7 +67,7 @@ for read_pair in files.keys():
   all_sorted_bams.append(os.path.join('/mydata/', os.path.basename(s3_fq1) + '.sorted.bam'))
 
 merged_bam = sample + '.merged.bam'
-merge_command = "qsub -hold_jid %s -b y -cwd python merge.py --delete --bams=%s --output=/mydata/%s" % (','.join(all_mapping_jobs), ','.join(all_sorted_bams), merged_bam)
+merge_command = "qsub -hold_jid %s -e /mydata/logs/ -o /mydata/logs/ -b y -cwd python merge.py --delete --bams=%s --output=/mydata/%s" % (','.join(all_mapping_jobs), ','.join(all_sorted_bams), merged_bam)
 exit_status, stdout = commands.getstatusoutput(merge_command)
 job = get_job_id(stdout)
 f.write(stdout + '\n')

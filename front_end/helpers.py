@@ -15,12 +15,28 @@ dbsnp_paths = {
   'dbsnp135' : '/data/dbsnp/dbsnp_135.vcf',
   'dbsnp132' : '/data/dbsnp/dbsnp_132.vcf' }
 amis = {
-  'hg19': 'ami-31e39358',
+  'hg19': 'ami-47ebb12e',
   'hg19-himem' : 'ami-XXXXXXX'}
 instances = {
   'bwa' : 'm1.large',
-  'bwa-mem' : 'm1.large',
+  'bwa-mem' : 'c1.xlarge',
   'snap' : 'm2.4xlarge'}
+# Allowed instances encodes which instances can be run for each algorithm, and how many files can be run per node
+allowed_instances = {
+  'bwa' : {
+    'm1.large' : 1,
+    'm1.xlarge' : 2,
+    'c1.xlarge' : 1,
+    'm2.4xlarge' : 4
+  },
+  'bwa-mem' : {
+    'm1.large' : 1,
+    'm1.xlarge' : 2,
+    'c1.xlarge' : 1,
+    'm2.4xlarge' : 4
+  },
+  'snap' : { 'm2.4xlarge' : 1 }
+}
 
 root = '/usr/local/bin/'
 bwa_binary = '%s/bwa-0.7.5a/bwa' % root
@@ -34,7 +50,12 @@ picard_merge_binary = '%s/picard/MergeSamFiles.jar' % root
 picard_stats_binary = '%s/picard/CollectMultipleMetrics.jar' % root
 picard_binary = '%s/picard/MarkDuplicates.jar' % root
 
-gatk_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
+gatk_lite_binary = '%s/GenomeAnalysisTKLite-2.1-12-g2d7797a/GenomeAnalysisTKLite.jar' % root
+gatk_binary = gatk_lite_binary
+#gatk_binary = '%s/GenomeAnalysisTK-2.7-4-g6f46d11/GenomeAnalysisTK.jar' % root
+bcftools_binary = '%s/bcftools' % root
+vcfutils_binary = '%s/vcfutils.pl' % root
+
 vcftools_binary = '%s/vcftools' % root
 vep_binary = '%s/variant_effect_predictor/variant_effect_predictor.pl' % root
 
@@ -183,18 +204,17 @@ def replace_zone_in_config_file(zone, sample):
     cnf.write(''.join(config))
 
 def add_to_config_file(parameters, sample):
-  parameters['sample'] = sample
-  parameters['ami'] = amis[parameters['genome_version']]
-  parameters['instance_type'] = instances[parameters['alignment_pipeline']]
-  try:
-    parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['spot_bid'])
-  except ValueError:
-    parameters['spot_request'] = ''
-  
-  output_config = open('/root/.starcluster/config', 'a')
-  in_string = open('/root/add_starcluster_config.txt').read()
-  output_config.write(in_string % parameters)
-  output_config.close()
+    parameters['sample'] = sample
+    parameters['ami'] = amis[parameters['genome_version']]
+    try:
+        parameters['spot_request'] = '' if parameters['request_type'] != 'spot' else 'SPOT_BID = %s' % float(parameters['spot_bid'])
+    except ValueError:
+        parameters['spot_request'] = ''
+    
+    output_config = open('/root/.starcluster/config', 'a')
+    in_string = open('/root/add_starcluster_config.txt').read()
+    output_config.write(in_string % parameters)
+    output_config.close()
 
 def add_volume_to_config_file(volume, sample):
   output_config = open('/root/.starcluster/config', 'a')

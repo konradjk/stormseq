@@ -22,10 +22,14 @@ f.flush()
 if not os.path.isfile('/root/.starcluster/config') or commands.getstatusoutput('sudo starcluster shi m1.large')[1].find('AuthFailure') > -1:
   write_basic_config_file(parameters, '')
 
-large_price = get_price('m1.large')
-hi_mem_price = get_price('m2.4xlarge')
-f.write(large_price + '\n' + hi_mem_price)
+if parameters["amazon-instance-types"] == 'default':
+	instance_type = instances[parameters['alignment_pipeline']]
+else:
+	instance_type = parameters["amazon-instance-types"]
+f.write(instance_type + '\n')
+price = get_price(instance_type)
+f.write(price + '\n')
 
 print 'Content-Type: text/html'
 print
-sys.stdout.write('%s,%s' % (large_price, hi_mem_price))
+sys.stdout.write(price)
