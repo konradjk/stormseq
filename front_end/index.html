@@ -136,6 +136,9 @@
               <select id='data_type' class='input-xlarge opts'>
                 <option value='type_wgs'>Whole Genome Sequence</option>
                 <option value='type_exome_illumina'>Illumina TruSeq Exome</option>
+                <option value='type_exome_nextera'>Illumina Nextera Rapid Capture</option>
+                <!--<option value='type_exome_nextera_expanded'>Illumina Nextera Rapid Capture Expanded</option>-->
+                  <!--Nextera expanded has no chrM capture, so this would break GATK - need workaround-->
                 <option value='type_exome_custom' disabled='disabled'>Upload your own intervals file (coming soon!)</option>
               </select>
               <br/>

@@ -63,7 +63,7 @@ try:
         break
     temp_bam_sorted = fq1 + '.sorted'
     #sort_command = '%s sort -no -@ 8 -m 6G %s %s' % (samtools_mt_binary, temp_bam, temp_bam_sorted)
-    sort_command = '%s sort -n -m 35000000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
+    sort_command = '%s sort -n -m 3500000000 %s %s' % (samtools_binary, temp_bam, temp_bam_sorted)
     print sort_command
     for i in range(3):
       print "Attempt: %s" % i
